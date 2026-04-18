@@ -17,7 +17,7 @@ export default function App() {
   const mapRef = useRef(null)
 
   useEffect(() => {
-    fetch('/api/processes')
+    fetch('https://otc-process-explorer.onrender.com/api/processes')
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(json => { setProcesses(json); setLoading(false) })
       .catch(err => { setError(err.message); setLoading(false) })
