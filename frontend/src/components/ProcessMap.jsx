@@ -26,22 +26,25 @@ function darkBg(hex, level) { return mixWhite(hex, Math.max(0, (OMBRE[level] ?? 
 
 // ── NodeFooter ────────────────────────────────────────────────────────────────
 function NodeFooter({ node, tc, mc }) {
-  const { raci, system_tool, key_data_points, change_highlight, decision_outcomes } = node
-  const anyRaci  = raci && Object.values(raci).some(v => v && v !== 'NA')
-  const hasSys   = system_tool && system_tool !== 'NA'
-  const hasData  = key_data_points && key_data_points !== 'NA'
-  const hasOuts  = !!decision_outcomes
-  const hasChg   = !!change_highlight
-  if (!anyRaci && !hasSys && !hasData && !hasOuts && !hasChg) return null
+  const { raci, system_tool, key_data_points, change_highlight, decision_outcomes,
+          critical_artefact, sla } = node
+  const anyRaci    = raci && Object.values(raci).some(v => v && v !== 'NA')
+  const hasSys     = system_tool && system_tool !== 'NA'
+  const hasData    = key_data_points && key_data_points !== 'NA'
+  const hasOuts    = !!decision_outcomes
+  const hasChg     = !!change_highlight
+  const hasArtef   = critical_artefact && critical_artefact !== 'NA' && critical_artefact !== ''
+  const hasSla     = sla && sla !== 'NA' && sla !== ''
+  if (!anyRaci && !hasSys && !hasData && !hasOuts && !hasChg && !hasArtef && !hasSla) return null
 
-  const pill = (label, val) => val && val !== 'NA' ? (
-    <span key={label} style={{
-      display:'inline-flex', alignItems:'center', gap:3,
-      padding:'1px 5px', borderRadius:4, fontSize:9, fontWeight:600,
-      background:'rgba(0,0,0,0.18)', color:tc,
-      border:'1px solid rgba(255,255,255,0.18)',
-    }}>{label} <span style={{fontWeight:400,opacity:0.9}}>{val}</span></span>
-  ) : null
+  const pill = (label, val, bg='rgba(0,0,0,0.18)', border='rgba(255,255,255,0.18)') =>
+    val && val !== 'NA' ? (
+      <span key={label} style={{
+        display:'inline-flex', alignItems:'center', gap:3,
+        padding:'1px 5px', borderRadius:4, fontSize:9, fontWeight:600,
+        background:bg, color:tc, border:`1px solid ${border}`,
+      }}>{label} <span style={{fontWeight:400,opacity:0.9}}>{val}</span></span>
+    ) : null
 
   return (
     <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.18)',
@@ -57,6 +60,12 @@ function NodeFooter({ node, tc, mc }) {
       {anyRaci && (
         <div style={{display:'flex',flexWrap:'wrap',gap:2}}>
           {pill('R',raci.r)}{pill('A',raci.a)}{pill('C',raci.c)}
+        </div>
+      )}
+      {(hasArtef || hasSla) && (
+        <div style={{display:'flex',flexWrap:'wrap',gap:2}}>
+          {hasArtef && pill('📎', critical_artefact, 'rgba(217,119,6,0.35)', 'rgba(217,119,6,0.5)')}
+          {hasSla   && pill('⏱', sla,               'rgba(37,99,235,0.30)', 'rgba(37,99,235,0.45)')}
         </div>
       )}
       {hasOuts && decision_outcomes.split('|').map((o,i)=>(
