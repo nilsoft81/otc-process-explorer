@@ -1,6 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
+// ── Inizio brand color palette (L1 override) ──────────────────────────────────
+const INIZIO_COLORS = {
+  'order-capture':        '#7C3AED',  // Inizio Violet (primary)
+  'service-delivery':     '#0891B2',  // Inizio Teal
+  'revenue-recognition':  '#16A34A',  // Forest Green
+  'invoicing-billing':    '#D97706',  // Amber
+  'collections':          '#2563EB',  // Inizio Blue
+}
+function procColor(proc) { return INIZIO_COLORS[proc.id] || proc.l1_color }
+
 // ── Color helpers ─────────────────────────────────────────────────────────────
 function mixWhite(hex, t) {
   const h = hex.replace('#', '')
@@ -20,7 +30,7 @@ function mc(level)         { return MUTED[level]   ?? '#94a3b8' }
 function darkBg(hex, level){ return mixWhite(hex, Math.max(0, (OMBRE[level] ?? 0.5) - 0.18)) }
 
 // ── AI / Bot icon ─────────────────────────────────────────────────────────────
-function BotIcon({ color, size = 13 }) {
+function BotIcon({ color, size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
          stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,7 +101,7 @@ function NodeFooter({ node, textC, mutedC }) {
   )
 }
 
-// ── NodeBox (regular: process steps) ─────────────────────────────────────────
+// ── NodeBox (regular process steps) ──────────────────────────────────────────
 function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expandDir='down', boxRef }) {
   const fill  = bg(baseColor, level)
   const dark  = darkBg(baseColor, level)
@@ -112,17 +122,16 @@ function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expa
       transform: isSelected ? 'translateY(-1px)' : undefined,
       display:'flex', flexDirection:'column',
     }}>
-      {/* Header row: seq badge + AI icon + decision badge */}
-      <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:3,marginBottom:4}}>
+      <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:4,marginBottom:4}}>
         <span style={{fontSize:10,fontFamily:'monospace',fontWeight:700,
           padding:'1px 5px',borderRadius:3,background:'rgba(0,0,0,0.2)',color:textC}}>
           {node.seq}
         </span>
         {isAI && (
-          <span style={{display:'inline-flex',alignItems:'center',gap:2,
-            padding:'1px 5px',borderRadius:3,background:'rgba(99,102,241,0.35)',color:textC,
-            fontSize:9,fontWeight:600}}>
-            <BotIcon color={textC} size={11}/> AI
+          <span style={{display:'inline-flex',alignItems:'center',gap:3,
+            padding:'2px 6px',borderRadius:4,background:'rgba(99,102,241,0.40)',color:textC,
+            fontSize:10,fontWeight:700}}>
+            <BotIcon color={textC} size={18}/> AI Agent
           </span>
         )}
         {node.step_type?.toLowerCase().includes('decision') && (
@@ -157,11 +166,18 @@ function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expa
 }
 
 // ── DiamondBox (decision nodes) ───────────────────────────────────────────────
-// Uses a rotated square that exactly inscribes a diamond within the outer bounding box.
-// DIAG = visual width/height of the diamond point-to-point.
-const DIAG = 164
-const SIDE = Math.round(DIAG / Math.SQRT2)  // inner square side ≈ 116px
-const INSET = Math.round((DIAG - SIDE) / 2) // offset from outer edge ≈ 24px
+const DIAG  = 164
+const SIDE  = Math.round(DIAG / Math.SQRT2)   // ≈ 116px inner square
+const INSET = Math.round((DIAG - SIDE) / 2)   // ≈ 24px
+
+// Map first word of outcome to short direction label
+function outcomeShort(txt) {
+  const w = txt.split(/[\s–—-]/)[0]
+  const M = { Yes:'YES', No:'NO', Approved:'OK', Rejected:'BACK',
+              Aligned:'OK', Discrepancy:'REWORK', Query:'QUERY',
+              Dispute:'DISPUTE', Chase:'CHASE' }
+  return M[w] || w.slice(0, 7).toUpperCase()
+}
 
 function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   const fill  = bg(baseColor, level)
@@ -170,76 +186,115 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   const mutedC= mc(level)
   const isAI  = node.raci?.r?.toUpperCase().includes('AI')
 
+  const outcomes = node.decision_outcomes
+    ? node.decision_outcomes.split('|').map(o => o.trim()).slice(0, 3)
+    : []
+
+  const isPos = t => /yes|proceed|approv|align/i.test(t)
+  const isNeg = t => /no\b|reject|discrepan|dispute|query|chase|return/i.test(t)
+  const outColor = t => isPos(t) ? '#16a34a' : isNeg(t) ? '#dc2626' : '#6366f1'
+
+  const STUB = 24  // exit stub length (px)
+  const HD   = 5   // arrowhead half-size
+
+  // Right, bottom, left exit geometry for up to 3 outcomes
+  const exits = [
+    { // → right (typically "Yes / forward")
+      lx1: DIAG,   ly1: DIAG/2,
+      lx2: DIAG+STUB, ly2: DIAG/2,
+      hd: `M${DIAG+STUB-HD},${DIAG/2-HD} L${DIAG+STUB+HD},${DIAG/2} L${DIAG+STUB-HD},${DIAG/2+HD}`,
+      tx: DIAG+STUB+HD+3, ty: DIAG/2+3, ta: 'start',
+    },
+    { // ↓ bottom (typically "No / back")
+      lx1: DIAG/2,   ly1: DIAG,
+      lx2: DIAG/2,   ly2: DIAG+STUB,
+      hd: `M${DIAG/2-HD},${DIAG+STUB-HD} L${DIAG/2},${DIAG+STUB+HD} L${DIAG/2+HD},${DIAG+STUB-HD}`,
+      tx: DIAG/2, ty: DIAG+STUB+HD+10, ta: 'middle',
+    },
+    { // ← left (third outcome if present)
+      lx1: 0,    ly1: DIAG/2,
+      lx2: -STUB, ly2: DIAG/2,
+      hd: `M${-STUB+HD},${DIAG/2-HD} L${-STUB-HD},${DIAG/2} L${-STUB+HD},${DIAG/2+HD}`,
+      tx: -STUB-HD-3, ty: DIAG/2+3, ta: 'end',
+    },
+  ]
+
   return (
-    <div ref={boxRef} style={{ position:'relative', flexShrink:0, width:DIAG, height:DIAG,
-      cursor: onClick ? 'pointer' : 'default' }}
-      onClick={onClick}>
-      {/* Rotated square = diamond */}
+    <div ref={boxRef} onClick={onClick}
+      style={{ position:'relative', flexShrink:0, width:DIAG, height:DIAG,
+        cursor: onClick ? 'pointer' : 'default', overflow:'visible' }}>
+
+      {/* Rotated square = diamond shape */}
       <div style={{
-        position:'absolute',
-        top:INSET, left:INSET,
-        width:SIDE, height:SIDE,
-        transform:'rotate(45deg)',
-        background:fill,
-        border:`2px solid ${dark}`,
+        position:'absolute', top:INSET, left:INSET, width:SIDE, height:SIDE,
+        transform:'rotate(45deg)', background:fill, border:`2px solid ${dark}`,
         boxShadow: isSelected
           ? `0 0 0 2px ${dark}, 0 4px 14px rgba(0,0,0,0.18)`
           : '0 1px 5px rgba(0,0,0,0.13)',
       }}/>
-      {/* Content — centered, counter-rotated stays horizontal */}
+
+      {/* Content — centered, stays horizontal */}
       <div style={{
         position:'absolute', inset:0,
         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-        padding:`12px ${INSET + 12}px`,
-        textAlign:'center', gap:2,
+        padding:`12px ${INSET+12}px`, textAlign:'center', gap:2,
       }}>
         <div style={{display:'flex',alignItems:'center',gap:3,flexWrap:'wrap',justifyContent:'center'}}>
           <span style={{fontSize:9,fontFamily:'monospace',fontWeight:700,
             padding:'1px 4px',borderRadius:3,background:'rgba(0,0,0,0.22)',color:textC}}>
             {node.seq}
           </span>
-          {isAI && <BotIcon color={textC} size={10}/>}
+          {isAI && <BotIcon color={textC} size={16}/>}
         </div>
         <p style={{fontSize:10,fontWeight:700,color:textC,margin:0,lineHeight:1.25,
-          maxWidth:SIDE-8,wordBreak:'break-word'}}>
+          maxWidth:SIDE-8, wordBreak:'break-word'}}>
           {node.name}
         </p>
         {node.raci?.r && node.raci.r !== 'NA' && (
           <span style={{fontSize:8,color:mutedC,lineHeight:1}}>R: {node.raci.r}</span>
         )}
-        {node.sla && node.sla !== '' && (
+        {node.sla && node.sla !== '' && node.sla !== 'NA' && (
           <span style={{fontSize:8,color:mutedC}}>⏱ {node.sla}</span>
         )}
-        {/* Yes / No outcome branches */}
-        {node.decision_outcomes && (
-          <div style={{display:'flex',flexDirection:'column',gap:1,marginTop:1}}>
-            {node.decision_outcomes.split('|').map((o,i) => {
-              const txt = o.trim()
-              const isYes = /^yes/i.test(txt)
-              const isNo  = /^no/i.test(txt)
-              return (
-                <span key={i} style={{
-                  fontSize:8, fontWeight:600, lineHeight:1.2,
-                  color: isYes ? '#16a34a' : isNo ? '#dc2626' : textC,
-                }}>
-                  {isYes ? '✓' : isNo ? '✗' : '▸'} {txt}
-                </span>
-              )
-            })}
-          </div>
-        )}
       </div>
+
+      {/* Decision exit arrows — exiting from diamond points */}
+      {outcomes.length > 0 && (
+        <svg style={{position:'absolute',top:0,left:0,overflow:'visible',
+                     pointerEvents:'none',zIndex:6}}
+             width={DIAG} height={DIAG}>
+          {outcomes.map((out, i) => {
+            if (i >= exits.length) return null
+            const e = exits[i]
+            const col = outColor(out)
+            const lbl = outcomeShort(out)
+            return (
+              <g key={i}>
+                {/* Stub line */}
+                <line x1={e.lx1} y1={e.ly1} x2={e.lx2} y2={e.ly2}
+                  stroke={col} strokeWidth="1.5" strokeLinecap="round"/>
+                {/* Arrowhead */}
+                <path d={e.hd} fill={col}/>
+                {/* Short label */}
+                <text x={e.tx} y={e.ty} fontSize="8" fill={col}
+                  textAnchor={e.ta} fontWeight="700"
+                  style={{fontFamily:'system-ui,sans-serif'}}>{lbl}</text>
+              </g>
+            )
+          })}
+        </svg>
+      )}
     </div>
   )
 }
 
-// ── Down-arrow connector (within a cell, between stacked items) ───────────────
+// ── Down-arrow connector (within-cell, between stacked items) ─────────────────
 function DownArrow({ color }) {
   return (
     <div style={{display:'flex',alignItems:'center',paddingLeft:20,margin:'3px 0'}}>
-      <svg width="12" height="20" viewBox="0 0 12 20" fill="none">
-        <line x1="6" y1="0" x2="6" y2="13" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-        <path d="M2 10l4 10 4-10" fill={color}/>
+      <svg width="10" height="18" viewBox="0 0 10 18" fill="none">
+        <line x1="5" y1="0" x2="5" y2="11" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M1 8l4 10 4-10" fill={color}/>
       </svg>
     </div>
   )
@@ -248,9 +303,9 @@ function DownArrow({ color }) {
 // ── Right-arrow connector (same role, consecutive segments) ───────────────────
 function RightArrow({ color }) {
   return (
-    <svg width="32" height="14" viewBox="0 0 32 14" fill="none" style={{flexShrink:0}}>
-      <line x1="0" y1="7" x2="22" y2="7" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-      <path d="M19 3l13 4-13 4" fill={color}/>
+    <svg width="28" height="12" viewBox="0 0 28 12" fill="none" style={{flexShrink:0}}>
+      <line x1="0" y1="6" x2="19" y2="6" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M16 2l12 4-12 4" fill={color}/>
     </svg>
   )
 }
@@ -374,7 +429,7 @@ export default function ProcessMap({ processes }) {
 
   // Cell items for (col, role)
   function getCellItems(col, role) {
-    const base = col.proc.l1_color
+    const base = procColor(col.proc)
     const items = []
 
     if (col.type === 'L1') {
@@ -434,10 +489,11 @@ export default function ProcessMap({ processes }) {
   }, [columns, expL3, roleOrder, l1Nodes])
 
   // ── Refs for SVG arrow overlay ────────────────────────────────────────────
-  const scrollRef = useRef(null)
-  const gridRef   = useRef(null)
-  const cellRefs  = useRef({})   // key: `${ci}_${role}` → DOM element
-  const nodeRefs  = useRef({})   // key: `${ci}_${role}_last` / `_first` → NodeBox DOM element
+  const scrollRef     = useRef(null)
+  const gridRef       = useRef(null)
+  const cellRefs      = useRef({})   // ci_role → cell div (fallback)
+  const boxFirstRefs  = useRef({})   // ci_role → first NodeBox/DiamondBox in cell
+  const boxLastRefs   = useRef({})   // ci_role → last  NodeBox/DiamondBox in cell
   const [svgArrows, setSvgArrows] = useState([])
   const [svgSize,   setSvgSize]   = useState({ w: 2000, h: 2000 })
 
@@ -449,56 +505,45 @@ export default function ProcessMap({ processes }) {
     const sl = scroll.scrollLeft
     const st = scroll.scrollTop
 
-    // Convert viewport rect → scroll-content coordinates
+    // Viewport → scroll-content coordinates
     const toC = rect => ({
       top:    rect.top    - scrollRect.top  + st,
       bottom: rect.bottom - scrollRect.top  + st,
       left:   rect.left   - scrollRect.left + sl,
       right:  rect.right  - scrollRect.left + sl,
-      cx:     rect.left   - scrollRect.left + sl + rect.width  / 2,
       cy:     rect.top    - scrollRect.top  + st + rect.height / 2,
-      w:      rect.width,
-      h:      rect.height,
     })
 
     const arrs = []
 
     columns.forEach((col, ci) => {
       if (col.type !== 'SEG' || !col.hasNext) return
-      if (col.seg.role === col.nextRole) return  // same lane → right-arrow already shown
+      if (col.seg.role === col.nextRole) return  // same lane → inline right-arrow
 
       const fromKey = `${ci}_${col.seg.role}`
       const toKey   = `${ci+1}_${col.nextRole}`
-      const fromEl  = cellRefs.current[fromKey]
-      const toEl    = cellRefs.current[toKey]
+
+      // Prefer precise box-level refs; fall back to cell div
+      const fromEl = boxLastRefs.current[fromKey]  || cellRefs.current[fromKey]
+      const toEl   = boxFirstRefs.current[toKey]   || cellRefs.current[toKey]
       if (!fromEl || !toEl) return
 
       const fr = toC(fromEl.getBoundingClientRect())
       const tr = toC(toEl.getBoundingClientRect())
 
-      // From right-center of source cell → left-center of target cell
+      // Right-center of last box → left-center of first box in next cell
       const x1 = fr.right
       const y1 = fr.cy
       const x2 = tr.left
       const y2 = tr.cy
-
-      // Midpoint X for the bend
       const midX = (x1 + x2) / 2
 
-      arrs.push({ x1, y1, x2, y2, midX, color: col.proc.l1_color,
+      arrs.push({ x1, y1, x2, y2, midX, color: procColor(col.proc),
         id: `${col.id}_${col.nextRole}` })
     })
 
-    // Also draw within-column arrows: consecutive steps in SAME expanded L2
-    // that are in DIFFERENT swimlane rows (same column position, different roles)
-    // These appear when an L2 has multiple consecutive same-role steps but then
-    // a role change within the same column (not possible with segment splitting,
-    // so these are already covered by the SEG->SEG case above).
-
     const grid = gridRef.current
-    if (grid) {
-      setSvgSize({ w: grid.scrollWidth, h: grid.scrollHeight })
-    }
+    if (grid) setSvgSize({ w: grid.scrollWidth, h: grid.scrollHeight })
     setSvgArrows(arrs)
   }, [columns])
 
@@ -506,9 +551,6 @@ export default function ProcessMap({ processes }) {
     const raf = requestAnimationFrame(() => computeArrows())
     return () => cancelAnimationFrame(raf)
   }, [computeArrows, expL1, expL2, expL3, visibleRoles])
-
-  // Re-compute on scroll (arrows need to stay fixed relative to content, not viewport)
-  // They are in content-space so no recompute needed on scroll — they scroll with the grid.
 
   const gtc = `${ROLE_W}px ${columns.map(()=>'max-content').join(' ')}`
 
@@ -520,7 +562,7 @@ export default function ProcessMap({ processes }) {
       <div ref={gridRef}
         style={{ display:'grid', gridTemplateColumns:gtc, alignItems:'start' }}>
 
-        {/* Corner */}
+        {/* Corner cell */}
         <div style={{
           gridRow:1, gridColumn:1,
           position:'sticky', top:0, left:0, zIndex:40,
@@ -535,7 +577,8 @@ export default function ProcessMap({ processes }) {
 
         {/* L1 group headers */}
         {l1Groups.map(g => {
-          const fill = bg(g.proc.l1_color, 'L1')
+          const base = procColor(g.proc)
+          const fill = bg(base, 'L1')
           return (
             <div key={g.proc.id+'_gh'}
               onClick={()=>togL1(g.proc.id)}
@@ -585,7 +628,7 @@ export default function ProcessMap({ processes }) {
               {/* Data cells */}
               {columns.map((col, ci) => {
                 const items    = getCellItems(col, role)
-                const base     = col.proc.l1_color
+                const base     = procColor(col.proc)
                 const isActive = items.length > 0
                 const isSeg    = col.type === 'SEG'
 
@@ -613,6 +656,9 @@ export default function ProcessMap({ processes }) {
                           const isDecision = item.node.step_type?.toLowerCase() === 'decision'
                             || item.node.step_type?.toLowerCase() === 'decision (automated)'
                           const BoxComp = isDecision ? DiamondBox : NodeBox
+                          const cellKey = `${ci}_${role}`
+                          const isFirstBox = ii === 0
+                          const isLastBox  = ii === items.length - 1
                           return (
                             <React.Fragment key={`${item.node.seq??item.node.id}_${ii}`}>
                               {ii > 0 && <DownArrow color={mixWhite(item.base, 0.22)}/>}
@@ -624,6 +670,10 @@ export default function ProcessMap({ processes }) {
                                 childCount={item.childCount}
                                 onClick={item.onClick}
                                 expandDir={item.expandDir}
+                                boxRef={el => {
+                                  if (isFirstBox) boxFirstRefs.current[cellKey] = el
+                                  if (isLastBox)  boxLastRefs.current[cellKey]  = el
+                                }}
                               />
                             </React.Fragment>
                           )
@@ -632,7 +682,7 @@ export default function ProcessMap({ processes }) {
                         {/* Same-role continuation arrow */}
                         {(showRight || showL2Right) && (
                           <div style={{
-                            position:'absolute', right:-18, top:'50%',
+                            position:'absolute', right:-16, top:'50%',
                             transform:'translateY(-50%)', zIndex:5,
                           }}>
                             <RightArrow color={mixWhite(base, 0.2)}/>
@@ -662,26 +712,28 @@ export default function ProcessMap({ processes }) {
         }}
         width={svgSize.w} height={svgSize.h}>
         <defs>
-          <marker id="swHead" markerWidth="9" markerHeight="9"
-            refX="8" refY="3" orient="auto">
-            <path d="M0,0 L9,3 L0,6 Z" fill="#475569"/>
+          {/* Small, clean arrowhead */}
+          <marker id="swHead" markerWidth="7" markerHeight="7"
+            refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0.5 L6,3.5 L0,6.5" fill="none"
+              stroke="#475569" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
           </marker>
-          <marker id="swHeadColor" markerWidth="9" markerHeight="9"
-            refX="8" refY="3" orient="auto">
-            <path d="M0,0 L9,3 L0,6 Z" fill="#334155"/>
+          <marker id="swHeadColor" markerWidth="7" markerHeight="7"
+            refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0.5 L6,3.5 L0,6.5" fill="none"
+              stroke="inherit" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
           </marker>
         </defs>
         {svgArrows.map(a => {
           const arrowColor = mixWhite(a.color, 0.15)
-          // Cubic bezier: right side of source → left side of target, bending via midX
           const d = `M${a.x1},${a.y1} C${a.midX},${a.y1} ${a.midX},${a.y2} ${a.x2},${a.y2}`
           return (
             <g key={a.id}>
-              {/* Shadow for visibility */}
-              <path d={d} fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="4.5"
+              {/* White halo for contrast */}
+              <path d={d} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="3.5"
                 strokeLinecap="round"/>
-              {/* Main arrow */}
-              <path d={d} fill="none" stroke={arrowColor} strokeWidth="2.5"
+              {/* Main slim arrow */}
+              <path d={d} fill="none" stroke={arrowColor} strokeWidth="1.5"
                 strokeLinecap="round" markerEnd="url(#swHead)"/>
             </g>
           )
