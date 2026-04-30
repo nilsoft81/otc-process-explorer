@@ -3,11 +3,12 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 
 // ── Inizio brand color palette (L1 override) ──────────────────────────────────
 const INIZIO_COLORS = {
-  'order-capture':        '#7C3AED',  // Inizio Violet (primary)
-  'service-delivery':     '#0891B2',  // Inizio Teal
-  'revenue-recognition':  '#16A34A',  // Forest Green
-  'invoicing-billing':    '#D97706',  // Amber
-  'collections':          '#2563EB',  // Inizio Blue
+  'order-capture':           '#7C3AED',  // Inizio Violet (primary)
+  'demand-supply-planning':  '#0E7490',  // Inizio Teal Dark
+  'service-delivery':        '#0891B2',  // Inizio Teal
+  'revenue-recognition':     '#16A34A',  // Forest Green
+  'invoicing-billing':       '#D97706',  // Amber
+  'collections':             '#2563EB',  // Inizio Blue
 }
 function procColor(proc) { return INIZIO_COLORS[proc.id] || proc.l1_color }
 
@@ -140,9 +141,11 @@ function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expa
         )}
       </div>
       <p style={{fontSize:11,fontWeight:600,lineHeight:1.35,color:textC,margin:0}}>{node.name}</p>
-      {(level==='L1'||level==='L2') && node.description && (
+      {node.description && (
         <p style={{fontSize:10,color:mutedC,margin:'3px 0 0',lineHeight:1.4,
-          display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+          ...(level==='L1'||level==='L2' ? {
+            display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'
+          } : {})}}>
           {node.description}
         </p>
       )}
@@ -192,7 +195,7 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
 
   const isPos = t => /yes|proceed|approv|align/i.test(t)
   const isNeg = t => /no\b|reject|discrepan|dispute|query|chase|return/i.test(t)
-  const outColor = t => isPos(t) ? '#16a34a' : isNeg(t) ? '#dc2626' : '#6366f1'
+  const outColor = () => dark
 
   const STUB = 24  // exit stub length (px)
   const HD   = 5   // arrowhead half-size
@@ -517,21 +520,29 @@ export default function ProcessMap({ processes }) {
     const arrs = []
 
     columns.forEach((col, ci) => {
-      if (col.type !== 'SEG' || !col.hasNext) return
-      if (col.seg.role === col.nextRole) return  // same lane → inline right-arrow
+      if (col.type === 'L1') return
+      const nextCol = columns[ci + 1]
+      if (!nextCol || nextCol.type === 'L1') return
+      if (col.proc.id !== nextCol.proc.id) return
 
-      const fromKey = `${ci}_${col.seg.role}`
-      const toKey   = `${ci+1}_${col.nextRole}`
+      const fromRole = col.type === 'L2' ? getRole(col.stage) : col.seg.role
+      const toRole   = nextCol.type === 'L2' ? getRole(nextCol.stage) : nextCol.seg.role
 
-      // Prefer precise box-level refs; fall back to cell div
-      const fromEl = boxLastRefs.current[fromKey]  || cellRefs.current[fromKey]
-      const toEl   = boxFirstRefs.current[toKey]   || cellRefs.current[toKey]
+      // Skip if same role and an inline right-arrow already handles this transition
+      const inlineHandled = fromRole === toRole && (
+        (col.type === 'SEG' && col.hasNext) || col.type === 'L2'
+      )
+      if (inlineHandled) return
+
+      const fromKey = `${ci}_${fromRole}`
+      const toKey   = `${ci+1}_${toRole}`
+      const fromEl  = boxLastRefs.current[fromKey]
+      const toEl    = boxFirstRefs.current[toKey]
       if (!fromEl || !toEl) return
 
       const fr = toC(fromEl.getBoundingClientRect())
       const tr = toC(toEl.getBoundingClientRect())
 
-      // Right-center of last box → left-center of first box in next cell
       const x1 = fr.right
       const y1 = fr.cy
       const x2 = tr.left
@@ -539,7 +550,7 @@ export default function ProcessMap({ processes }) {
       const midX = (x1 + x2) / 2
 
       arrs.push({ x1, y1, x2, y2, midX, color: procColor(col.proc),
-        id: `${col.id}_${col.nextRole}` })
+        id: `${col.id}_to_${ci+1}` })
     })
 
     const grid = gridRef.current
@@ -726,15 +737,17 @@ export default function ProcessMap({ processes }) {
         </defs>
         {svgArrows.map(a => {
           const arrowColor = mixWhite(a.color, 0.15)
-          const d = `M${a.x1},${a.y1} C${a.midX},${a.y1} ${a.midX},${a.y2} ${a.x2},${a.y2}`
+          const d  = `M${a.x1},${a.y1} L${a.midX},${a.y1} L${a.midX},${a.y2} L${a.x2},${a.y2}`
+          const AH = 5
+          const ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
           return (
             <g key={a.id}>
-              {/* White halo for contrast */}
               <path d={d} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="3.5"
-                strokeLinecap="round"/>
-              {/* Main slim arrow */}
+                strokeLinecap="square" strokeLinejoin="miter"/>
               <path d={d} fill="none" stroke={arrowColor} strokeWidth="1.5"
-                strokeLinecap="round" markerEnd="url(#swHead)"/>
+                strokeLinecap="square" strokeLinejoin="miter"/>
+              <path d={ah} fill="none" stroke={arrowColor} strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round"/>
             </g>
           )
         })}

@@ -21,322 +21,427 @@ ORDER_CAPTURE = {
     "id": "order-capture",
     "l1_seq": "1",
     "l1_name": "Order Capture",
-    "l1_color": "#0D9488",
-    "l1_description": (
-        "End-to-end stage covering all activities from initial client engagement "
-        "through to project activation and budget establishment."
-    ),
+    "l1_color": "#7C3AED",
+    "l1_description": "End-to-end stage covering all activities from initial client engagement through to project activation and budget establishment.",
     "raci": {"r": "Various", "a": "Various", "c": "NA"},
     "system_tool": "CLM / CRM / ERP",
     "key_data_points": "NA",
     "critical_artefact": "",
-    "sla": "1 day",
+    "sla": "",
     "stages": [
 
-        # ── L2-01  Customer & Contract Setup ──────────────────────────────────
+        # ── L2-1.1  Customer & Contract Setup ─────────────────────────────────
         {
             "id": "customer-contract-setup",
             "seq": "1.1",
             "name": "Customer & Contract Setup (incl. portal setup)",
-            "description": (
-                "Establish the client record, negotiate and execute the master "
-                "services agreement, set up the client portal, and configure entitlements."
-            ),
-            "color": "#0D9488",
+            "description": "Establish the client record, negotiate and execute the master services agreement, set up the client portal, and configure entitlements.",
+            "color": "#7C3AED",
             "system_tool": "CLM / CRM",
-            "raci": {"r": "Operations", "a": "Operations", "c": "NA"},
+            "raci": {"r": "Sales", "a": "Sales", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "1 day",
+            "sla": "",
             "change_highlight": "Portal setup to be automated via CLM integration in To-Be",
             "steps": [
                 _s("1.1.1", "Customer Initiation",
                    sys="CRM", r="Sales", a="Sales",
-                   data="Customer ID, Parent Customer ID, Customer Name, Industry",
-                   sla="1 day",
-                   desc="Receive new client / opportunity trigger from Sales/Business Development. "
-                        "Capture preliminary customer details (name, region, industry)."),
+                   change="To-Be: CRM → CLM auto-sync eliminates manual re-entry",
+                   children=[
+                       _s("1.1.1.1", "Log Prospect in HubSpot & Create HubSpot Customer Record",
+                          level="L4", sys="CRM", r="Sales", a="Sales",
+                          notes="HubSpot dedupes on ID/exact match but not fuzzy match."),
+                       _s("1.1.1.2", "Opportunity Created in HubSpot",
+                          level="L4", sys="CRM", r="Sales", a="Sales",
+                          notes="Check for DocuSign/Adobe Sign integration with HubSpot."),
+                       _s("1.1.1.3", "Advance Prospect Through Deal Stages",
+                          level="L4", sys="CRM", r="Sales", a="Sales",
+                          notes="Needs automated integration with HighQ or contract capture tool."),
+                       _s("1.1.1.4", "Customer Already Exists in ERP?",
+                          level="L4", sys="CRM / ERP", r="Automated", a="Sales",
+                          type="Decision",
+                          outcomes="Yes – proceed to 1.1.4 | No – submit MDM request",
+                          notes="Agent raises ServiceNow ticket and writes record in MDM if customer not found."),
+                       _s("1.1.1.5", "Submit Request to Global Master Data Team",
+                          level="L4", sys="CRM / ServiceNow", r="Automated", a="Sales",
+                          notes="System: CRM / ServiceNow / MDM"),
+                   ]),
 
                 _s("1.1.2", "Customer Master Data Creation & Hierarchy Setup",
-                   sys="CRM", r="Global Master Data", a="Global Master Data",
-                   data="Customer master data",
-                   sla="1 day",
-                   desc="Create customer record in CRM/ERP. Perform duplicate check. "
-                        "Assign customer ID and account owner. Define parent/child relationships."),
+                   sys="ServiceNow / ERP", r="Global Master Data", a="Global Master Data",
+                   notes="Deduplication check and parent-child linking should be automated within MDM.",
+                   children=[
+                       _s("1.1.2.1", "MDM Ticket Review & Identification of Data Gaps",
+                          level="L4", sys="ServiceNow / ERP", r="Global Master Data", a="Global Master Data",
+                          notes="Feasible to automate through agentic workflow. What is the MDM system?"),
+                       _s("1.1.2.2", "Is Client Services Input Required to Complete Missing Fields?",
+                          level="L4", sys="ERP", r="Global Master Data", a="Global Master Data",
+                          type="Decision",
+                          outcomes="Yes – request info | No – proceed to 1.1.3",
+                          notes="Human-in-the-loop step for the agentic workflow."),
+                       _s("1.1.2.3", "Request for Supplementary Information",
+                          level="L4", sys="ServiceNow", r="Global Master Data", a="Global Master Data"),
+                       _s("1.1.2.4", "Obtain & Populate Missing Information for Customer Record",
+                          level="L4", sys="Email / ServiceNow", r="Sales", a="Sales"),
+                       _s("1.1.2.5", "MDM Ticket Review & Record Creation",
+                          level="L4", sys="ERP", r="Automated", a="Global Master Data"),
+                       _s("1.1.2.6", "Ticket Closure & Customer ID Write-back",
+                          level="L4", sys="ServiceNow / ERP / CRM", r="Automated", a="Global Master Data"),
+                       _s("1.1.2.7", "Notification of Client Record Update in HubSpot",
+                          level="L4", sys="CRM", r="Automated", a="Sales"),
+                   ]),
 
                 _s("1.1.3", "Credit & Compliance Screening",
-                   sys="ERP", r="GFS - Credit", a="GFS - Credit", c="Sales",
-                   data="Credit & risk score",
-                   sla="1 day",
-                   desc="Perform credit check / financial due diligence. Conduct compliance checks. "
-                        "Assign provisional payment terms and risk rating."),
+                   sys="Credit Platform / ERP", r="GFS - Credit", a="GFS - Credit", c="Sales",
+                   children=[
+                       _s("1.1.3.1", "Compliance Screening",
+                          level="L4", sys="Third-party provider", r="GFS - Credit", a="GFS - Credit"),
+                       _s("1.1.3.2", "Credit Assessment",
+                          level="L4", sys="Third-party provider", r="GFS - Credit", a="GFS - Credit"),
+                       _s("1.1.3.3", "Risk Scoring",
+                          level="L4", sys="Credit Platform", r="GFS - Credit", a="GFS - Credit"),
+                       _s("1.1.3.4", "Credit Decisioning",
+                          level="L4", sys="Credit Platform", r="GFS - Credit", a="GFS - Credit",
+                          type="Decision",
+                          outcomes="Auto-approve low-risk | Route exception for manual review",
+                          notes="Low-risk auto-approved; high-risk routed to manual review with additional info request."),
+                       _s("1.1.3.5", "ERP Credit Master Update",
+                          level="L4", sys="ERP", r="Automated", a="GFS - Credit"),
+                       _s("1.1.3.6", "Notify Stakeholders",
+                          level="L4", sys="Credit Platform", r="Automated", a="GFS - Credit"),
+                   ]),
 
                 _s("1.1.4", "Master Services Agreement (MSA) Management",
                    sys="CLM", r="Legal", a="Legal",
-                   type="Process/Decision",
                    artefact="MSA",
-                   sla="1 day",
-                   desc="Check for existing MSA and validate applicability. Draft MSA if required. "
-                        "Negotiate legal and high-level commercial terms. Execute and store agreement.",
                    children=[
-                       _s("1.1.4.1", "Select MSA Template",
-                          level="L4", sys="CLM", r="Legal", a="Legal",
-                          sla="1 day",
-                          desc="Choose the appropriate MSA template based on division and client region."),
-
-                       _s("1.1.4.2", "Populate High-level Commercial Terms",
-                          level="L4", sys="CLM", r="Legal", a="Legal", c="Sales",
-                          data="Billing terms and frequency",
-                          sla="1 day",
-                          desc="Enter commercial details including commercial model, rate card, "
-                               "discount, payment terms, currency and billing frequency."),
-
-                       _s("1.1.4.3", "Non-Standard Terms?",
+                       _s("1.1.4.1", "Existing MSA Check",
                           level="L4", sys="CLM", r="Legal", a="Legal",
                           type="Decision",
-                          data="Billing terms and frequency",
-                          outcomes="Yes – legal review | No – proceed to send",
-                          sla="1 day",
-                          desc="Determine whether any negotiated terms deviate from the approved playbook."),
-
-                       _s("1.1.4.4", "Approval for Non-Standard Terms",
+                          outcomes="Yes – use existing (→ 1.1.4.11) | No – create new MSA",
+                          notes="Template library maintained by Legal."),
+                       _s("1.1.4.2", "Select MSA Template",
+                          level="L4", sys="CLM", r="Legal", a="Legal"),
+                       _s("1.1.4.3", "Populate High-level Commercial Terms",
+                          level="L4", sys="CLM", r="Legal", a="Legal", c="Sales",
+                          change="To-Be: rate card auto-populated from CRM opportunity"),
+                       _s("1.1.4.4", "Non-Standard Terms?",
                           level="L4", sys="CLM", r="Legal", a="Legal",
-                          data="Billing terms and frequency",
-                          sla="1 day",
-                          desc="Obtain required approvals for any non-standard commercial or legal terms "
-                               "before proceeding to contract execution."),
-
-                       _s("1.1.4.5", "Send Contract to Client",
-                          level="L4", sys="CLM", r="Sales", a="Sales",
-                          sla="1 day",
-                          desc="Transmit final contract to client signatories via e-signature link. "
-                               "Log send date and expected return date in CLM."),
-
-                       _s("1.1.4.6", "Client Reviews & Signs Contract",
-                          level="L4", sys="DocuSign", r="Client (External)", a="Sales",
-                          sla="1 day",
-                          desc="Client reviews the contract, raises redlines if applicable, "
-                               "and executes via e-signature platform."),
-
-                       _s("1.1.4.7", "Contract Fully Executed?",
+                          type="Decision",
+                          outcomes="Yes – legal review | No – proceed to send"),
+                       _s("1.1.4.5", "Approval for Non-Standard Terms",
+                          level="L4", sys="CLM", r="Legal", a="Legal"),
+                       _s("1.1.4.6", "Send Contract to Client",
+                          level="L4", sys="CLM (DocuSign)", r="Automated", a="Sales",
+                          change="To-Be: send triggered automatically on approval"),
+                       _s("1.1.4.7", "Client Amendments?",
+                          level="L4", sys="CLM", r="Legal", a="Legal",
+                          type="Decision",
+                          outcomes="Yes – revise terms (→ 1.1.4.3) | No – proceed to sign"),
+                       _s("1.1.4.8", "Client Reviews & Signs Contract",
+                          level="L4", sys="CLM (DocuSign)", r="Client (External)", a="Sales",
+                          notes="Redline cycle may add 5–15 business days."),
+                       _s("1.1.4.9", "Contract Fully Executed?",
                           level="L4", sys="CLM", r="Legal", a="Legal",
                           type="Decision",
                           outcomes="Yes – proceed | No – chase signatures",
-                          sla="1 day",
-                          desc="Confirm all counterparty signatures are captured and the contract "
-                               "is legally binding before proceeding."),
-
-                       _s("1.1.4.8", "Set Up Client Portal & Entitlements",
-                          level="L4", sys="CLM / Client Portal", r="Operations", a="Operations",
+                          change="To-Be: CLM auto-alerts on unsigned docs after 5 days"),
+                       _s("1.1.4.10", "Set Up Client Portal & Entitlements",
+                          level="L4", sys="CLM / Client Portal", r="Legal", a="Legal",
                           artefact="Client portal setup",
-                          sla="1 day",
-                          desc="Provision the client's portal access, configure project visibility, "
-                               "set user roles and permissions."),
-
-                       _s("1.1.4.9", "Notify Order Management to Proceed",
-                          level="L4", sys="CLM", r="Operations", a="Operations",
-                          sla="1 day",
-                          desc="Send internal handoff notification with contract summary, billing model, "
-                               "PO reference, and project start date to the Order Management team."),
+                          change="To-Be: portal provisioned automatically on contract execution"),
+                       _s("1.1.4.11", "Notify Stakeholders",
+                          level="L4", sys="CLM", r="Automated", a="Legal",
+                          change="To-Be: structured data handoff drives L2-02 automatically"),
+                       _s("1.1.4.12", "MSA Upload to Agent",
+                          level="L4", sys="Contract Capture Tool", r="Legal", a="Legal"),
+                       _s("1.1.4.13", "MSA: Data Extraction",
+                          level="L4", sys="Contract Capture Tool / ERP", r="AI Agent - Contract Capture", a="Legal"),
                    ]),
             ],
         },
 
-        # ── L2-02  Order Entry & Validation ───────────────────────────────────
+        # ── L2-1.2  Order Entry & Validation ──────────────────────────────────
         {
             "id": "order-entry-validation",
             "seq": "1.2",
             "name": "Order Entry & Validation (incl. POs)",
-            "description": (
-                "Execute Statement of Work (SOW) including scope, deliverables, and pricing. "
-                "Set up the contract/order in the ERP/PSA system and prepare for project setup."
-            ),
+            "description": "Manage SOW lifecycle from initiation through client signature, PO intake and validation, and full ERP order entry.",
             "color": "#7C3AED",
-            "system_tool": "Oracle / Maconomy",
-            "raci": {"r": "Operations", "a": "Operations", "c": "NA"},
+            "system_tool": "CLM / ERP / CRM",
+            "raci": {"r": "Client Services", "a": "Client Services", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "1 day",
+            "sla": "",
+            "change_highlight": "",
             "steps": [
-                _s("1.2.1", "SOW Initiation",
-                   sys="CLM / Email", r="Operations", a="Operations",
-                   sla="1 day",
-                   desc="Receive new project opportunity (following 1.1.4.9 for new customers; "
-                        "point of origination for existing customers)."),
+                _s("1.2.1", "SOW Initiation / Amendment",
+                   sys="CLM", r="Client Services", a="Client Services",
+                   children=[
+                       _s("1.2.1.1", "Project Amendment?",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services",
+                          type="Decision",
+                          outcomes="Yes – amendment flow (→ 1.2.2.2) | No – new SOW (→ 1.2.2.1)"),
+                   ]),
 
                 _s("1.2.2", "Draft SOW",
-                   sys="CLM", r="Operations", a="Operations",
+                   sys="CLM", r="Client Services", a="Client Services",
                    artefact="SOW",
-                   sla="1 day",
-                   desc="Develop scope, deliverables and timelines. Define pricing and commercial terms. "
-                        "Align resourcing and effort with delivery. Generate SOW document.",
                    children=[
-                       _s("1.2.2.1", "Define Scope & Delivery Approach",
-                          level="L4", sys="CLM", r="Operations", a="Operations",
-                          data="Deliverables, Timeline, Milestones, Dependencies",
-                          sla="2 days",
-                          desc="Establish deliverables, timeline, milestones, dependencies, etc."),
-
-                       _s("1.2.2.2", "Define Pricing & Commercial Terms",
-                          level="L4", sys="CLM", r="Operations", a="Operations",
-                          data="Fees, Pricing Structure, Billing cadence, Billing triggers",
-                          sla="2 days",
-                          desc="Determine pricing model, fees, billing structure and key commercial terms."),
-
-                       _s("1.2.2.3", "Define Resourcing & Effort",
-                          level="L4", sys="CLM", r="Operations", a="Operations",
-                          data="Resourcing",
-                          sla="2 days",
-                          desc="Define resourcing and effort requirements to support delivery."),
-
-                       _s("1.2.2.4", "Draft SOW Document (CLM)",
-                          level="L4", sys="CLM", r="Operations", a="Operations",
-                          artefact="SOW",
-                          sla="2 days",
-                          desc="Generate and populate SOW using standardised templates. "
-                               "Define billable vs. non-billable guidelines."),
+                       _s("1.2.2.1", "Select SOW Template (CLM)",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services"),
+                       _s("1.2.2.2", "Define Scope & Delivery Approach",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services"),
+                       _s("1.2.2.3", "Define Pricing & Commercial Terms",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services"),
+                       _s("1.2.2.4", "Define Resourcing & Effort",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services"),
+                       _s("1.2.2.5", "Draft SOW Document",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services",
+                          artefact="SOW"),
+                       _s("1.2.2.6", "Scope Change?",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services",
+                          type="Decision",
+                          outcomes="Yes – redraft (→ 1.2.2.7) | No – proceed to send"),
+                       _s("1.2.2.7", "Redraft SOW Document",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services"),
                    ]),
 
                 _s("1.2.3", "Send SOW to Client",
-                   sys="Email", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Review and modify with client. Finalise SOW details."),
+                   sys="CLM (DocuSign)", r="Client Services", a="Client Services"),
 
                 _s("1.2.4", "Client Reviews & Signs Contract",
-                   sys="DocuSign", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Client executes the final SOW via e-signature platform."),
+                   sys="CLM (DocuSign)", r="Client Services", a="Client Services",
+                   artefact="Signed SOW",
+                   children=[
+                       _s("1.2.4.1", "Send Contract to Client",
+                          level="L4", sys="CLM (DocuSign)", r="Client Services", a="Client Services"),
+                       _s("1.2.4.2", "Client Amendments",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services"),
+                       _s("1.2.4.3", "Client Reviews & Signs SOW",
+                          level="L4", sys="CLM (DocuSign)", r="Client Services", a="Client Services"),
+                       _s("1.2.4.4", "Contract Fully Executed?",
+                          level="L4", sys="CLM", r="Client Services", a="Client Services",
+                          type="Decision",
+                          outcomes="Yes – activate project | No – chase signatures"),
+                       _s("1.2.4.5", "Project Activation Trigger",
+                          level="L4", sys="PSA", r="Client Services", a="Client Services"),
+                       _s("1.2.4.6", "SOW Internal Approval",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.4.7", "SOW Upload to Agent",
+                          level="L4", sys="Contract Capture Tool", r="Client Services", a="Client Services"),
+                       _s("1.2.4.8", "SOW: Data Extraction",
+                          level="L4", sys="Contract Capture Tool / ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.4.9", "SOW Alignment to MSA?",
+                          level="L4", sys="Contract Capture Tool", r="AI Agent - Contract Capture", a="Client Services",
+                          type="Decision",
+                          outcomes="Yes – proceed | No – discrepancy resolution"),
+                       _s("1.2.4.10", "SOW Alignment Discrepancy Resolution",
+                          level="L4", sys="Contract Capture Tool / CLM", r="Client Services", a="Client Services"),
+                       _s("1.2.4.11", "SOW Value Capture & System Recording",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                   ]),
 
                 _s("1.2.5", "PO Intake, Validation & Routing",
-                   sys="Email / Portal / EDI", r="Operations", a="GFS", c="GFS",
+                   sys="Email / Portal / EDI", r="AI Agent - Contract Capture", a="Client Services",
                    artefact="PO",
-                   sla="2 days",
-                   desc="Receive, validate and route purchase orders from client. Ensure alignment "
-                        "with executed SOW and set up in ERP.",
                    children=[
-                       _s("1.2.5.1", "PO Intake",
-                          level="L4", sys="Email / Portal / EDI", r="Operations", a="GFS", c="GFS",
-                          artefact="PO",
-                          sla="2 days",
-                          desc="Receive PO via email, portal or EDI channel."),
-
-                       _s("1.2.5.2", "PO Completeness & Validity Check",
-                          level="L4", sys="Email / Portal / EDI", r="Operations", a="GFS", c="GFS",
-                          sla="2 days",
-                          desc="Verify PO is complete, valid and contains required fields."),
-
-                       _s("1.2.5.3", "PO Alignment to SOW?",
-                          level="L4", sys="Email / Portal / EDI / CLM", r="Operations", a="GFS", c="GFS",
+                       _s("1.2.5.1", "PO Received?",
+                          level="L4", sys="Email / Portal / EDI", r="AI Agent - Contract Capture", a="Client Services",
                           type="Decision",
-                          outcomes="Aligned – proceed | Discrepancy – resolve",
-                          sla="2 days",
-                          desc="Check PO value, scope and terms align with the executed SOW."),
-
-                       _s("1.2.5.4", "PO Discrepancy Resolution",
-                          level="L4", sys="Email / Portal / EDI", r="Operations", a="GFS", c="GFS",
-                          sla="2 days",
-                          desc="Resolve any discrepancies between PO and SOW with client and Operations."),
-
-                       _s("1.2.5.5", "PO Routing & Assignment",
-                          level="L4", sys="CLM", r="Operations", a="GFS", c="GFS",
-                          sla="2 days",
-                          desc="Route validated PO to the appropriate team and link to CLM contract."),
-
-                       _s("1.2.5.6", "PO Recording & System Linkage",
-                          level="L4", sys="ERP", r="Operations", a="GFS", c="GFS",
-                          data="PO",
-                          sla="2 days",
-                          desc="Record PO details in ERP and link to the relevant project/contract record."),
+                          outcomes="Yes – PO intake | No – proceed without PO (→ 1.2.6)"),
+                       _s("1.2.5.2", "PO Intake",
+                          level="L4", sys="Email / Portal / EDI", r="AI Agent - Contract Capture", a="Client Services",
+                          artefact="PO"),
+                       _s("1.2.5.3", "PO Upload to Agent",
+                          level="L4", sys="Contract Capture Agent", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.5.4", "PO: Data Extraction",
+                          level="L4", sys="Contract Capture Agent", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.5.5", "PO Completeness & Validity Check",
+                          level="L4", sys="Contract Capture Agent", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.5.6", "PO Alignment to SOW?",
+                          level="L4", sys="Contract Capture Agent", r="AI Agent - Contract Capture", a="Client Services",
+                          type="Decision",
+                          outcomes="Yes – proceed | No – discrepancy resolution"),
+                       _s("1.2.5.7", "PO Alignment Discrepancy Resolution",
+                          level="L4", sys="Contract Capture Agent", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.5.8", "PO Capture & System Linkage",
+                          level="L4", sys="CRM", r="AI Agent - Contract Capture", a="Client Services"),
                    ]),
 
                 _s("1.2.6", "Contract Setup / Order Entry",
-                   sys="ERP", r="Operations", a="Operations",
-                   data="Deliverables, Timeline, Milestones, Fees, Pricing Structure, "
-                        "Billing cadence, Billing triggers, Resourcing, Revenue recognition method",
-                   sla="2 days",
-                   desc="Create contract/order record. Input pricing, billing structure and key terms. "
-                        "Link to customer. Configure billing schedule and triggers. "
-                        "Set revenue recognition method."),
-
-                _s("1.2.7", "Data Validation",
-                   sys="ERP", r="AI (TEST)", a="AI (TEST)",
-                   type="Decision (automated)",
-                   sla="2 days",
-                   desc="Validate data across CRM, CLM and ERP. Confirm readiness for delivery."),
-
-                _s("1.2.8", "Internal Approval",
-                   sys="ERP", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Route SOW for final approval and signatures. Check for existing credit holds."),
+                   sys="ERP / CRM", r="AI Agent - Contract Capture", a="Client Services",
+                   children=[
+                       _s("1.2.6.1", "Contract / Order Record Creation",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.6.2", "Commercial Data Entry",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.6.3", "PO Association",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.6.4", "Billing Configuration",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.6.5", "Revenue Recognition Setup",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.6.6", "Data Validation & Reconciliation",
+                          level="L4", sys="ERP", r="AI Agent - Contract Capture", a="Client Services"),
+                       _s("1.2.6.7", "Update Deal Stage",
+                          level="L4", sys="HubSpot", r="AI Agent - Contract Capture", a="Client Services"),
+                   ]),
             ],
         },
 
-        # ── L2-03  Project Activation & Budgeting ────────────────────────────
+        # ── L2-1.3  Project Activation & Budgeting ────────────────────────────
         {
             "id": "project-activation-budgeting",
             "seq": "1.3",
             "name": "Project Activation & Budgeting",
-            "description": (
-                "Create and structure the project in the ERP/PSA system aligned to the executed SOW. "
-                "Establish budgets, assign resources, and configure time, expense, and billing readiness."
-            ),
-            "color": "#D97706",
-            "system_tool": "PSA",
-            "raci": {"r": "Operations", "a": "Operations", "c": "Finance"},
+            "description": "Set up project structure, budgets, resourcing, and billing configuration in PSA to enable delivery and time/expense tracking.",
+            "color": "#7C3AED",
+            "system_tool": "PSA / Concur",
+            "raci": {"r": "Client Services", "a": "Client Services", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "",
             "steps": [
-                _s("1.3.1", "Project Initiation",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Receive signed SOW. Assign project manager."),
+                _s("1.3.1", "Project Initiation",           sys="PSA", r="Client Services", a="Client Services"),
+                _s("1.3.2", "Project Structure Setup",       sys="PSA", r="Client Services", a="Client Services"),
+                _s("1.3.3", "Budget Setup",                  sys="PSA", r="Client Services", a="Client Services", c="Finance"),
+                _s("1.3.4", "Initial Resourcing Alignment",  sys="PSA", r="Client Services", a="Client Services"),
+                _s("1.3.5", "Time & Expense Enablement",     sys="PSA / Concur", r="Client Services", a="Client Services"),
+                _s("1.3.6", "Billing Readiness Validation",  sys="PSA", r="Client Services", a="Client Services"),
+                _s("1.3.7", "Project Governance & Controls Setup", sys="PSA", r="Client Services", a="Client Services"),
+                _s("1.3.8", "Project Activation (Go-Live)",  sys="PSA", r="Client Services", a="Client Services"),
+            ],
+        },
+    ],
+}
 
-                _s("1.3.2", "Project Structure Setup",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Create project record linked to SOW and customer data. "
-                        "Define work packages (phases, activities, timeline, milestones) aligned to SOW."),
 
-                _s("1.3.3", "Budget Setup",
-                   sys="PSA", r="Operations", a="Operations", c="Finance",
-                   sla="2 days",
-                   desc="Load revenue baseline from SOW. Define cost budget based on resourcing plan. "
-                        "Establish margin baseline."),
+# ══════════════════════════════════════════════════════════════════════════════
+# L1-02  DEMAND & SUPPLY PLANNING
+# ══════════════════════════════════════════════════════════════════════════════
+DEMAND_SUPPLY = {
+    "id": "demand-supply-planning",
+    "l1_seq": "2",
+    "l1_name": "Demand & Supply Planning",
+    "l1_color": "#0E7490",
+    "l1_description": "Align revenue forecasting, workforce capacity planning, and staffing assignments to meet client demand across all divisions.",
+    "raci": {"r": "Various", "a": "Various", "c": "NA"},
+    "system_tool": "CRM / PSA / EPM / HRIS",
+    "key_data_points": "NA",
+    "critical_artefact": "",
+    "sla": "",
+    "stages": [
 
-                _s("1.3.4", "Initial Resourcing Alignment",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Validate roles and capacity assumptions against SOW. "
-                        "Initiate coordination with resource management for staffing requirements."),
+        # ── L2-2.1  Revenue Forecasting ───────────────────────────────────────
+        {
+            "id": "revenue-forecasting",
+            "seq": "2.1",
+            "name": "Revenue Forecasting",
+            "description": "Consolidate pipeline data and historical trends to produce a validated revenue forecast.",
+            "color": "#0E7490",
+            "system_tool": "CRM / PSA / EPM",
+            "raci": {"r": "GFS", "a": "Division Finance", "c": "NA"},
+            "key_data_points": "NA",
+            "critical_artefact": "",
+            "sla": "",
+            "change_highlight": "",
+            "steps": [
+                _s("2.1.1", "Pipeline Review & Demand Signal Capture",
+                   sys="CRM", r="Sales", a="Sales", c="Client Services",
+                   children=[
+                       _s("2.1.1.1", "Pipeline Data Review & Update",
+                          level="L4", sys="CRM", r="Sales", a="Sales"),
+                       _s("2.1.1.2", "Opportunity Qualification for Forecast",
+                          level="L4", sys="CRM", r="Sales", a="Sales", c="Client Services"),
+                       _s("2.1.1.3", "Forecast Inclusion Trigger",
+                          level="L4", sys="EPM", r="Automated", a="Sales"),
+                       _s("2.1.1.4", "Pipeline Commitment & Override",
+                          level="L4", sys="EPM", r="Client Services", a="Client Services", c="Sales"),
+                   ]),
 
-                _s("1.3.5", "Time & Expense Enablement",
-                   sys="PSA/Concur", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Enable time entry against project. Configure expense policies and categories. "
-                        "Validate billable vs non-billable guidelines. "
-                        "Load and synchronise project codes to expense systems."),
+                _s("2.1.2", "Historical Demand Analysis",
+                   sys="EPM", r="Division Finance", a="Division Finance",
+                   children=[
+                       _s("2.1.2.1", "Historical Revenue & Utilisation Review",
+                          level="L4", sys="EPM", r="Division Finance", a="Division Finance"),
+                       _s("2.1.2.2", "Trend & Seasonality Analysis",
+                          level="L4", sys="EPM", r="Division Finance", a="Division Finance"),
+                       _s("2.1.2.3", "Baseline Demand Assumption Update",
+                          level="L4", sys="EPM", r="Division Finance", a="Division Finance", c="Client Services"),
+                   ]),
 
-                _s("1.3.6", "Billing Readiness Validation",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Confirm billing configuration is correctly linked to project. "
-                        "Validate invoice triggers and schedule alignment. "
-                        "Ensure bill-to details and client data are correct."),
+                _s("2.1.3", "Demand Consolidation & Forecast Generation",
+                   sys="EPM", r="GFS", a="Division Finance",
+                   children=[
+                       _s("2.1.3.1", "Forecast Consolidation",
+                          level="L4", sys="EPM", r="GFS", a="GFS"),
+                       _s("2.1.3.2", "Forecast Review & Challenge",
+                          level="L4", sys="EPM", r="GFS", a="GFS", c="Division Finance"),
+                       _s("2.1.3.3", "Forecast Finalisation & Publication",
+                          level="L4", sys="EPM", r="GFS", a="GFS"),
+                   ]),
 
-                _s("1.3.7", "Project Governance & Controls Setup",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Define reporting cadence (status, financials). "
-                        "Establish change control process. Define approval matrix."),
+                _s("2.1.4", "Scope Change?",
+                   sys="PSA / ERP", r="Division Finance", a="Division Finance", c="Client Services",
+                   type="Decision",
+                   outcomes="Yes – assess impact | No – proceed to 2.2"),
 
-                _s("1.3.8", "Project Activation (Go-Live)",
-                   sys="PSA", r="Operations", a="Operations",
-                   data="Project code(s)",
-                   sla="2 days",
-                   desc="Validate all setup components are complete. Confirm no credit holds. "
-                        "Activate project for time, cost and billing. "
-                        "Notify stakeholders (Delivery, Finance, Sales)."),
+                _s("2.1.5", "Scope Change Impact Assessment",
+                   sys="PSA / ERP", r="Division Finance", a="Division Finance", c="Client Services"),
+            ],
+        },
+
+        # ── L2-2.2  Demand Planning & Workforce Optimisation ──────────────────
+        {
+            "id": "demand-planning-workforce",
+            "seq": "2.2",
+            "name": "Demand Planning & Workforce Optimisation",
+            "description": "Translate forecast demand into capacity plans and identify hiring or subcontractor needs.",
+            "color": "#0E7490",
+            "system_tool": "PSA / HRIS",
+            "raci": {"r": "Staffing", "a": "Staffing", "c": "NA"},
+            "key_data_points": "NA",
+            "critical_artefact": "",
+            "sla": "",
+            "change_highlight": "",
+            "steps": [
+                _s("2.2.1", "Demand Signal Identification",              sys="PSA",       r="Staffing", a="Staffing"),
+                _s("2.2.2", "Capacity Assessment",                       sys="PSA",       r="Staffing", a="Staffing"),
+                _s("2.2.3", "Gap Analysis",                              sys="PSA",       r="Staffing", a="Staffing"),
+                _s("2.2.4", "Hiring & Subcontractor Planning",           sys="PSA / HRIS",r="Staffing", a="Staffing"),
+                _s("2.2.5", "Scope Change?",
+                   sys="PSA", r="Staffing", a="Staffing",
+                   type="Decision",
+                   outcomes="Yes – reassess demand | No – proceed to staffing"),
+                _s("2.2.6", "Demand Reassessment & Workforce Rebalancing", sys="PSA / HRIS", r="Staffing", a="Staffing"),
+            ],
+        },
+
+        # ── L2-2.3  Staffing and Assignments ──────────────────────────────────
+        {
+            "id": "staffing-assignments",
+            "seq": "2.3",
+            "name": "Staffing and Assignments",
+            "description": "Match available resources to confirmed demand, resolve conflicts, and confirm assignments.",
+            "color": "#0E7490",
+            "system_tool": "PSA / BI",
+            "raci": {"r": "Staffing", "a": "Staffing", "c": "NA"},
+            "key_data_points": "NA",
+            "critical_artefact": "",
+            "sla": "",
+            "change_highlight": "",
+            "steps": [
+                _s("2.3.1", "Resource Matching & Assignment Proposals",    sys="PSA",      r="Staffing", a="Staffing"),
+                _s("2.3.2", "Conflict Resolution & Prioritisation",        sys="PSA",      r="Staffing", a="Staffing"),
+                _s("2.3.3", "Resource Commitment Confirmation",             sys="PSA",      r="Staffing", a="Staffing"),
+                _s("2.3.4", "Supply-Demand Reporting",                      sys="PSA / BI", r="Staffing", a="Staffing"),
+                _s("2.3.5", "Scope Change?",
+                   sys="PSA", r="Staffing", a="Staffing",
+                   type="Decision",
+                   outcomes="Yes – adjust staffing | No – proceed to delivery"),
+                _s("2.3.6", "Staffing Adjustment & Reassignment",           sys="PSA",      r="Staffing", a="Staffing"),
             ],
         },
     ],
@@ -350,218 +455,188 @@ SERVICE_DELIVERY = {
     "id": "service-delivery",
     "l1_seq": "3",
     "l1_name": "Service Delivery",
-    "l1_color": "#2563EB",
-    "l1_description": (
-        "All operational activities performed during project execution: time capture, "
-        "expense management, cost allocation and milestone / progress monitoring. "
-        "Feeds directly into revenue recognition and invoicing."
-    ),
-    "raci": {"r": "Operations", "a": "Operations", "c": "NA"},
-    "system_tool": "PSA",
+    "l1_color": "#0891B2",
+    "l1_description": "Track and approve time, expenses, and other project costs; monitor milestones and trigger billing events.",
+    "raci": {"r": "Various", "a": "Various", "c": "NA"},
+    "system_tool": "PSA / Concur / ERP",
     "key_data_points": "NA",
     "critical_artefact": "",
-    "sla": "2 days",
+    "sla": "",
     "stages": [
 
-        # ── L2  3.1  Track Time ───────────────────────────────────────────────
+        # ── L2-3.1  Track Time ────────────────────────────────────────────────
         {
             "id": "track-time",
             "seq": "3.1",
             "name": "Track Time",
-            "description": (
-                "Capture and approve time worked on projects to enable accurate "
-                "cost tracking, billing and revenue recognition."
-            ),
-            "color": "#2563EB",
+            "description": "Capture, review, approve, and post timesheets; notify Revenue and Billing on approval.",
+            "color": "#0891B2",
             "system_tool": "PSA",
-            "raci": {"r": "Operations", "a": "Operations", "c": "NA"},
+            "raci": {"r": "Client Services", "a": "Client Services", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "To-Be: weekly timesheet submission enforced via PSA automated reminders; approval SLA tracked in system",
             "steps": [
                 _s("3.1.1", "Time Entry Capture",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Record time worked against project tasks, activities and billing category "
-                        "(billable, non-billable, internal)."),
-
+                   sys="PSA", r="Client Services", a="Client Services",
+                   change="To-Be: PSA sends automated daily nudge if timesheet not started by Thursday; hard lock on Friday EOD",
+                   notes="Daily entry strongly encouraged; weekly submission minimum"),
                 _s("3.1.2", "Timesheet Review & Approval",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Project Manager reviews submitted time for accuracy and completeness. "
-                        "Approves or rejects with comments."),
-
+                   sys="PSA", r="Project Manager", a="Project Manager",
+                   notes="SLA: PM approval within 2 business days of submission"),
                 _s("3.1.3", "PM Approval Decision",
-                   sys="PSA", r="Operations", a="Operations",
+                   sys="PSA", r="Project Manager", a="Project Manager",
                    type="Decision",
-                   outcomes="Approved | Rejected – return to resource",
-                   sla="2 days",
-                   desc="PM makes approval decision on the submitted timesheet."),
-
+                   outcomes="Approved | Rejected – return to resource"),
                 _s("3.1.4", "Timesheet Posting & Update",
-                   sys="PSA", r="Operations", a="Operations",
-                   data="Time and materials",
-                   sla="2 days",
-                   desc="Approved timesheet is locked in PSA and actuals are posted to the ERP project ledger. "
-                        "Billable hours are flagged for revenue recognition and invoicing runs."),
-
+                   sys="PSA", r="Project Manager", a="Project Manager",
+                   change="To-Be: auto-post to ERP on PM approval; no manual re-keying",
+                   notes="Integration: PSA → ERP real-time sync"),
                 _s("3.1.5", "Notify Revenue & Billing Teams",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="PSA triggers automated notification to Revenue Accounting and Billing that "
-                        "approved billable hours are available for the current period."),
+                   sys="PSA", r="Project Manager", a="Project Manager",
+                   change="To-Be: automated trigger eliminates manual handoff email to Finance",
+                   notes="Feeds Stage 4 rev rec and Stage 5 invoicing"),
             ],
         },
 
-        # ── L2  3.2  Track Expenses ───────────────────────────────────────────
+        # ── L2-3.2  Track Expenses ────────────────────────────────────────────
         {
             "id": "track-expenses",
             "seq": "3.2",
             "name": "Track Expenses",
-            "description": (
-                "Capture, validate and approve project-related expenses. "
-                "Approved expenses are posted to the project cost ledger and passed to billing."
-            ),
-            "color": "#7C3AED",
-            "system_tool": "Concur/ERP",
-            "raci": {"r": "Operations", "a": "Operations", "c": "NA"},
+            "description": "Capture, approve, and post expense claims; flag rechargeable items for invoicing.",
+            "color": "#0891B2",
+            "system_tool": "Concur / ERP",
+            "raci": {"r": "Client Services", "a": "Client Services", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "To-Be: Concur integrated with ERP and PSA for automated project code validation and real-time cost posting",
             "steps": [
                 _s("3.2.1", "Expense Capture",
-                   sys="Concur", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Record project-related expenses with supporting documentation, "
-                        "tagged to the applicable project code(s)."),
-
+                   sys="Concur", r="Client Services", a="Client Services",
+                   change="To-Be: Concur mobile app enables real-time receipt capture at point of expenditure",
+                   notes="30-day submission policy; late claims flagged for Finance approval"),
                 _s("3.2.2", "Expense Review & Approval",
-                   sys="Concur", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Review expenses for policy compliance and accuracy. "
-                        "Approve or reject expense claims."),
-
+                   sys="Concur", r="Project Manager", a="Project Manager",
+                   notes="SLA: PM approval within 3 business days"),
                 _s("3.2.3", "PM Approval Decision",
-                   sys="Concur", r="Operations", a="Operations",
+                   sys="Concur", r="Project Manager", a="Project Manager",
                    type="Decision",
-                   outcomes="Approved | Rejected – return to resource",
-                   sla="2 days",
-                   desc="PM makes approval decision on the submitted expense report."),
-
+                   outcomes="Yes – proceed to post | No – return to resource"),
                 _s("3.2.4", "Post to Project Cost Ledger & Flag for Billing",
-                   sys="Concur/ERP", r="Operations", a="Operations",
-                   data="Billable and non-billable out of pocket expenses",
-                   sla="2 days",
-                   desc="Post approved expenses to the system. Update project financial records. "
-                        "Rechargeable items automatically flagged for inclusion in next client invoice run."),
+                   sys="Concur / ERP", r="Project Manager", a="Project Manager",
+                   change="To-Be: real-time Concur → ERP sync; rechargeable flag auto-set from contract rules",
+                   notes="Feeds Stage 5 invoicing (expense recharge lines)"),
             ],
         },
 
-        # ── L2  3.3  Track & Allocate Other Costs ────────────────────────────
+        # ── L2-3.3  Track & Allocate Other Costs ─────────────────────────────
         {
             "id": "track-allocate-costs",
             "seq": "3.3",
             "name": "Track & Allocate Other Costs",
-            "description": (
-                "Capture and allocate project costs not sourced from timesheets or expense claims "
-                "(e.g., overheads, sub-contractor invoices, software licences, shared service allocations)."
-            ),
+            "description": "Identify, validate, allocate, and post indirect and shared costs to projects.",
             "color": "#0891B2",
-            "system_tool": "ERP/PSA",
+            "system_tool": "ERP / PSA",
             "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "",
             "steps": [
                 _s("3.3.1", "Cost Identification & Capture",
-                   sys="ERP", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Identify other project-related costs (e.g., subcontractors, overhead allocations). "
-                        "Capture cost details from source systems or inputs."),
+                   sys="ERP", r="GFS", a="GFS", c="Client Services",
+                   notes="Monthly cost review meeting; output is list of items requiring action",
+                   children=[
+                       _s("3.3.1.1", "Identify Cost Source & Data Capture",
+                          level="L4", sys="ERP", r="GFS", a="GFS"),
+                       _s("3.3.1.2", "Validate Cost Accuracy",
+                          level="L4", sys="ERP", r="GFS", a="GFS"),
+                       _s("3.3.1.3", "Assign Cost Classification",
+                          level="L4", sys="ERP", r="GFS", a="GFS"),
+                   ]),
 
                 _s("3.3.2", "Cost Allocation",
                    sys="ERP", r="GFS", a="GFS",
                    artefact="Allocation methodology",
-                   sla="2 days",
-                   desc="Apply agreed allocation methodology for shared costs across active projects."),
+                   change="To-Be: ERP allocation engine runs automatically at period end using pre-configured drivers",
+                   notes="Allocation methodology approved annually by Finance leadership",
+                   children=[
+                       _s("3.3.2.1", "Allocation Basis Definition",
+                          level="L4", sys="ERP", r="GFS", a="GFS"),
+                       _s("3.3.2.2", "Allocation Calculation",
+                          level="L4", sys="ERP", r="Automated", a="GFS"),
+                       _s("3.3.2.3", "Cost Allocation Assignment",
+                          level="L4", sys="ERP", r="GFS", a="Client Services"),
+                       _s("3.3.2.4", "Allocation Validation",
+                          level="L4", sys="ERP", r="GFS", a="Client Services", c="Client Services"),
+                       _s("3.3.2.5", "Cost Allocation Approval?",
+                          level="L4", sys="ERP", r="GFS", a="GFS",
+                          type="Decision",
+                          outcomes="Yes – proceed to post | No – revise allocation"),
+                   ]),
 
                 _s("3.3.3", "Cost Posting",
-                   sys="ERP/PSA", r="GFS", a="GFS",
-                   data="Pass-through costs",
-                   sla="2 days",
-                   desc="Post allocated costs in the ERP to project financials. "
-                        "Update project cost records and enable downstream reporting."),
+                   sys="ERP / PSA", r="GFS", a="Client Services",
+                   notes="Monthly: flags fed to Stage 4 rev rec if scope change impacts revenue",
+                   children=[
+                       _s("3.3.3.1", "Cost Posting to Project Ledger",
+                          level="L4", sys="ERP", r="Automated", a="GFS"),
+                       _s("3.3.3.2", "Cost Synchronisation to PSA",
+                          level="L4", sys="PSA", r="Automated", a="GFS"),
+                   ]),
             ],
         },
 
-        # ── L2  3.4  Milestone & Progress Monitoring ──────────────────────────
+        # ── L2-3.4  Milestone & Progress Monitoring ───────────────────────────
         {
             "id": "milestone-progress-monitoring",
             "seq": "3.4",
             "name": "Milestone & Progress Monitoring",
-            "description": (
-                "Monitor project progress and milestone completion to support "
-                "delivery tracking, billing triggers and revenue recognition."
-            ),
-            "color": "#059669",
+            "description": "Track project progress, validate milestone completion, obtain client acceptance, and trigger billing events.",
+            "color": "#0891B2",
             "system_tool": "PSA / ERP",
-            "raci": {"r": "Operations", "a": "Operations", "c": "NA"},
+            "raci": {"r": "Client Services", "a": "Client Services", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "To-Be: PSA provides real-time project health dashboard; replaces manual status reporting",
             "steps": [
                 _s("3.4.1", "Progress Tracking",
-                   sys="PSA", r="Operations", a="Operations",
+                   sys="PSA", r="Client Services", a="Client Services",
                    artefact="Milestone / PoC tracker",
-                   sla="2 days",
-                   desc="Track project progress against defined milestones and deliverables. "
-                        "Update task completion status and percentage-complete in PSA."),
+                   change="To-Be: PSA auto-calculates % complete from logged hours vs estimated hours for T&M tasks",
+                   notes="Weekly update mandatory for all active projects"),
 
                 _s("3.4.2", "Milestone Validation",
-                   sys="PSA", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Confirm milestone completion and obtain required approvals or sign-off.",
+                   sys="PSA", r="Client Services", a="Client Services",
                    children=[
                        _s("3.4.2.1", "Milestone Completion Confirmed?",
-                          level="L4", sys="PSA", r="Operations", a="Operations",
+                          level="L4", sys="PSA", r="Client Services", a="Client Services",
                           type="Decision",
-                          outcomes="Yes – initiate sign-off | No – continue monitoring",
-                          sla="2 days",
-                          desc="Confirm that milestone deliverables have been completed in line with "
-                               "agreed scope and acceptance criteria."),
-
+                          outcomes="Yes – initiate sign-off | No – continue monitoring"),
                        _s("3.4.2.2", "Prepare Milestone Completion Evidence",
-                          level="L4", sys="PSA", r="Operations", a="Operations",
-                          sla="2 days",
-                          desc="Compile supporting documentation (deliverables, sign-offs, acceptance records). "
-                               "Ensure evidence is complete and aligned with contractual requirements."),
-
+                          level="L4", sys="PSA", r="Client Services", a="Client Services",
+                          notes="Stored in project document repository; linked to PSA milestone record"),
                        _s("3.4.2.3", "Client Acceptance Obtained?",
-                          level="L4", sys="NA", r="Operations", a="Operations",
+                          level="L4", sys="PSA", r="Client Services", a="Client Services",
                           type="Decision",
-                          outcomes="Yes – proceed | No – resolve with client",
-                          sla="2 days",
-                          desc="Confirm whether client acceptance has been formally obtained."),
-
+                          outcomes="Yes – proceed | No – resolve with client"),
                        _s("3.4.2.4", "Client Acceptance Confirmation",
-                          level="L4", sys="NA", r="Operations", a="Operations",
-                          type="Decision",
-                          sla="2 days",
-                          desc="Record and file formal client acceptance confirmation in project records."),
+                          level="L4", sys="PSA", r="Client Services", a="Client Services"),
                    ]),
 
                 _s("3.4.3", "Progress & Milestone Update",
-                   sys="PSA", r="Operations", a="Operations",
-                   data="PoC tracking",
-                   sla="2 days",
-                   desc="PM marks milestone as complete and accepted in PSA."),
+                   sys="PSA", r="Client Services", a="Client Services",
+                   change="To-Be: PSA auto-triggers billing event and rev rec update on milestone sign-off",
+                   notes="Feeds Stage 4 rev rec and Stage 5 invoicing"),
 
                 _s("3.4.4", "Trigger Billing Event",
-                   sys="PSA / ERP", r="Operations", a="Operations",
-                   data="Billing trigger",
-                   sla="2 days",
-                   desc="System automatically creates billing event and notifies the Billing team to "
-                        "generate the invoice. Updates revenue recognition schedule."),
+                   sys="PSA / ERP", r="Client Services", a="Client Services",
+                   change="To-Be: PSA auto-triggers billing event and rev rec update on milestone sign-off",
+                   notes="Feeds Stage 4 rev rec and Stage 5 invoicing"),
             ],
         },
     ],
@@ -575,135 +650,87 @@ REVENUE_RECOGNITION = {
     "id": "revenue-recognition",
     "l1_seq": "4",
     "l1_name": "Revenue Recognition",
-    "l1_color": "#DC2626",
-    "l1_description": (
-        "All activities to recognise revenue in accordance with revenue recognition rules, "
-        "posting adjustments and reconciling deferred / accrued balances."
-    ),
+    "l1_color": "#16A34A",
+    "l1_description": "Execute and post revenue entries in the ERP, resolve exceptions, and post adjustment journals for rebates and true-ups.",
     "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
     "system_tool": "ERP",
     "key_data_points": "NA",
     "critical_artefact": "",
-    "sla": "2 days",
+    "sla": "",
     "stages": [
 
-        # ── L2  4.1  Revenue Execution & Posting ──────────────────────────────
+        # ── L2-4.1  Revenue Execution & Posting ───────────────────────────────
         {
             "id": "revenue-execution-posting",
             "seq": "4.1",
             "name": "Revenue Execution & Posting",
-            "description": (
-                "Calculate revenue based on contract terms/milestones and post journal entries to the GL."
-            ),
-            "color": "#DC2626",
+            "description": "Trigger the revenue recognition run, validate readiness, resolve exceptions, and post final revenue journals.",
+            "color": "#16A34A",
             "system_tool": "ERP",
             "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "To-Be: automated rev rec run replaces manual journal entry for standard engagements",
             "steps": [
                 _s("4.1.1", "Revenue Recognition Trigger Initiation",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Trigger revenue recognition cycle (e.g., period-end). "
-                        "Validate alignment with SOW / MSA terms and revenue recognition rules."),
-
+                   change="To-Be: scheduled ERP job replaces manual trigger",
+                   notes="Run on last working day of period"),
                 _s("4.1.2", "Revenue Readiness Validation",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Confirm required inputs are complete (e.g., approved timesheets, "
-                        "cross-check fixed fee to POC, etc.)."),
-
+                   notes="Flag variances >$10k for controller sign-off"),
                 _s("4.1.3", "Exceptions Identified?",
                    sys="ERP", r="GFS", a="GFS",
                    type="Decision",
-                   outcomes="Yes – adjust | No – post",
-                   sla="2 days",
-                   desc="Identify missing, incomplete or inconsistent data (e.g., timing differences)."),
-
+                   outcomes="Yes – adjust | No – post"),
                 _s("4.1.4", "Exception Resolution",
-                   sys="ERP", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Resolve identified exceptions."),
-
+                   sys="ERP", r="GFS", a="GFS", c="Operations"),
                 _s("4.1.5", "Revenue Execution (incl. Accruals & Deferrals)",
-                   sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Revenue is calculated according to revenue recognition rules aligned to "
-                        "contract terms. Includes accruals (revenue earned but not billed) and "
-                        "deferrals (revenue billed but not yet earned)."),
-
+                   sys="ERP", r="GFS", a="GFS"),
                 _s("4.1.6", "Journal Entry Preparation & Routing",
-                   sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Prepare revenue journal entries based on revenue calculations. "
-                        "Route journal entries for approval in line with financial controls."),
-
+                   sys="ERP", r="GFS", a="GFS"),
                 _s("4.1.7", "Journal Entry Approvals",
-                   sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Review and approve journal entries in line with financial controls."),
-
+                   sys="ERP", r="GFS", a="GFS"),
                 _s("4.1.8", "Revenue Posting",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Accruals, Deferrals, Unbilled AR",
-                   sla="2 days",
-                   desc="Post revenue journal entries to the general ledger. System updates deferred "
-                        "revenue, accrued revenue, and unbilled AR balances accordingly."),
+                   notes="Dual approval required above agreed threshold"),
             ],
         },
 
-        # ── L2  4.2  Adjustments & True-Ups ──────────────────────────────────
+        # ── L2-4.2  Adjustments & True-Ups ───────────────────────────────────
         {
             "id": "adjustments-true-ups",
             "seq": "4.2",
             "name": "Adjustments & True-Ups (e.g. Rebates)",
-            "description": (
-                "Process post-recognition adjustments and true-ups to reflect updated commercial "
-                "or financial information (e.g., rebates, contract modifications, scope changes)."
-            ),
-            "color": "#9333EA",
+            "description": "Identify, calculate, approve, and post revenue adjustments including rebates and volume true-ups.",
+            "color": "#16A34A",
             "system_tool": "ERP / CLM",
             "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "",
             "steps": [
                 _s("4.2.1", "Adjustment Trigger Initiated",
                    sys="ERP / CLM", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Identify events requiring revenue adjustment or true-up "
-                        "(e.g., rebates, credits, pricing changes, change orders)."),
-
+                   notes="Source data: CLM for contract terms; ERP for actuals"),
                 _s("4.2.2", "Adjustment Review And Validation",
-                   sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Review the nature, amount and rationale for the adjustment. "
-                        "Validate supporting documentation and approvals. Document rationale in ERP."),
-
+                   sys="ERP", r="GFS", a="GFS"),
                 _s("4.2.3", "Adjustment Calculation",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Calculate the financial impact of the adjustment or true-up. "
-                        "Determine the required accounting treatment.",
+                   notes="Supporting calc to be retained for audit",
                    children=[
                        _s("4.2.4", "Journal Entry Preparation & Routing",
                           level="L4", sys="ERP", r="GFS", a="GFS",
-                          sla="2 days",
-                          desc="Prepare adjustment journal entries and route for approval."),
-
-                       _s("4.2.5", "Journal Entry Approvals",
-                          level="L4", sys="ERP", r="GFS", a="GFS",
-                          sla="2 days",
-                          desc="Review and approve journal entries in line with financial controls."),
+                          children=[
+                              _s("4.2.5", "Journal Entry Approvals",
+                                 level="L4", sys="ERP", r="GFS", a="GFS"),
+                          ]),
                    ]),
-
                 _s("4.2.6", "Adjustment Posting",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Adjustments and true-ups to revenue",
-                   sla="2 days",
-                   desc="Post adjustment or true-up journal entries to the general ledger. "
-                        "Update project and financial records accordingly."),
+                   change="To-Be: ERP → EPM auto-sync reduces manual reforecast effort"),
             ],
         },
     ],
@@ -718,155 +745,108 @@ INVOICING_BILLING = {
     "l1_seq": "5",
     "l1_name": "Invoicing & Billing",
     "l1_color": "#D97706",
-    "l1_description": (
-        "End-to-end process to prepare, review, approve, and issue client invoices "
-        "including client review cycles."
-    ),
-    "raci": {"r": "GFS", "a": "GFS", "c": "Operations"},
-    "system_tool": "ERP",
+    "l1_description": "Prepare, review, approve, and submit invoices to clients; manage queries and disputes through to confirmed receipt.",
+    "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
+    "system_tool": "ERP / Client Portal",
     "key_data_points": "NA",
     "critical_artefact": "",
-    "sla": "2 days",
+    "sla": "",
     "stages": [
 
-        # ── L2  5.1  Invoice Preparation & Internal Review ────────────────────
+        # ── L2-5.1  Invoice Preparation & Internal Review ─────────────────────
         {
             "id": "invoice-preparation-internal-review",
             "seq": "5.1",
             "name": "Invoice Preparation & Internal Review (incl. Billing on Behalf)",
-            "description": (
-                "Generate draft invoices from ERP based on approved timesheets, expenses or "
-                "milestone triggers. Perform internal quality review before sending to client."
-            ),
+            "description": "Trigger invoice generation, validate billing data, resolve mismatches, prepare draft invoices, and complete internal sign-off.",
             "color": "#D97706",
             "system_tool": "ERP",
-            "raci": {"r": "GFS", "a": "GFS", "c": "Operations"},
-            "key_data_points": "Billing trigger, Draft invoice, PO reference",
+            "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
+            "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "To-Be: invoice auto-generated on timesheet approval or milestone sign-off",
             "steps": [
                 _s("5.1.1", "Invoice Trigger Initiated",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Trigger invoice cycle based on defined billing events (e.g., scheduled "
-                        "billing date, milestone completion, billable activity)."),
-
+                   change="To-Be: automated pull from approved timesheets; no manual extraction"),
                 _s("5.1.2", "Billing Readiness Validation",
-                   sys="ERP", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Confirm trigger conditions are met (e.g., approved time/expenses, milestone "
-                        "sign-off). Validate data completeness and accuracy for billing. "
-                        "Ensure alignment with billing structure in SOW / MSA terms."),
-
+                   sys="ERP", r="GFS", a="GFS", c="Operations"),
                 _s("5.1.3", "Mismatch Identified?",
                    sys="ERP", r="GFS", a="GFS",
                    type="Decision",
-                   outcomes="Yes – resolve | No – proceed",
-                   sla="2 days",
-                   desc="Identify discrepancies between billing data and contract terms."),
-
+                   outcomes="Yes – resolve mismatch | No – proceed to preparation"),
                 _s("5.1.4", "Mismatch Resolution",
-                   sys="ERP", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Investigate and resolve discrepancies (e.g., correct time/expenses, "
-                        "update billing data, clarify scope)."),
-
+                   sys="ERP", r="Operations", a="Operations"),
                 _s("5.1.5", "Billing Data Preparation & Consolidation",
                    sys="ERP", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Compile billable items (time, expenses, milestones). Generate and structure "
-                        "billing data, including consolidation across projects or divisions."),
-
+                   change="To-Be: invoice generated automatically upon billable item confirmation"),
                 _s("5.1.6", "Invoice Preparation",
                    sys="ERP", r="GFS", a="GFS", c="Operations",
-                   data="Invoice amount",
                    artefact="Invoice",
-                   sla="2 days",
-                   desc="Generate draft invoice with PO reference(s) and final structure."),
-
+                   notes="Checklist-based review; documented in ERP"),
                 _s("5.1.7", "Internal Review",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Review invoice for accuracy and completeness. "
-                        "Compare against approved SOW and MSA terms. "
-                        "Resolve discrepancies prior to client submission."),
+                   notes="Loop back to internal review if changes required"),
+                _s("5.1.8", "Handoff to Operations",
+                   sys="ERP", r="GFS", a="GFS"),
             ],
         },
 
-        # ── L2  5.2  Client Review & Approval ────────────────────────────────
+        # ── L2-5.2  Client Review & Approval ──────────────────────────────────
         {
             "id": "client-review-approval",
             "seq": "5.2",
             "name": "Client Review & Approval",
-            "description": (
-                "Facilitate client review of draft invoice, resolve queries and obtain approval."
-            ),
-            "color": "#EA580C",
+            "description": "Transmit invoice to client, manage queries and disputes, and obtain client approval.",
+            "color": "#D97706",
             "system_tool": "ERP / Client Portal / Email",
             "raci": {"r": "GFS / Operations", "a": "GFS", "c": "NA"},
-            "key_data_points": "Client query log, Invoice approval status",
+            "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "",
             "steps": [
                 _s("5.2.1", "Transmit Invoice to Client",
                    sys="ERP / Client Portal / Email", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Submit draft invoice to client if required "
-                        "(e.g., skip step if scheduled billing)."),
-
+                   change="To-Be: auto-transmitted via portal on controller approval"),
                 _s("5.2.2", "Client Query Raised?",
                    sys="ERP / Client Portal / Email", r="Operations", a="Operations",
                    type="Decision",
                    outcomes="Approved | Query raised | Dispute",
-                   sla="2 days",
-                   desc="Monitor for client response within agreed SLA."),
-
+                   notes="SLA for client response: per contract terms (typically 5–10 business days)"),
                 _s("5.2.3", "Client Query Resolution",
                    sys="ERP / Client Portal / Email", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Address client queries or disputes. Provide supporting documentation "
-                        "or revise invoice as required."),
-
+                   notes="Loop back to client review; credit note process in ERP if applicable"),
                 _s("5.2.4", "Client Approval",
                    sys="ERP / Client Portal / Email", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Obtain client approval to proceed with invoice issuance. Trigger AR posting."),
+                   change="To-Be: portal approval auto-updates ERP status"),
             ],
         },
 
-        # ── L2  5.3  Execution & Submission ──────────────────────────────────
+        # ── L2-5.3  Execution & Submission ────────────────────────────────────
         {
             "id": "execution-submission",
             "seq": "5.3",
             "name": "Execution & Submission",
-            "description": (
-                "Finalise and issue invoice, post accounts receivable and update billing records "
-                "to enable tracking and collection."
-            ),
-            "color": "#16A34A",
-            "system_tool": "ERP / Client Portal / Email / EDI",
+            "description": "Finalise, post, and submit the approved invoice; reconcile receipt confirmation.",
+            "color": "#D97706",
+            "system_tool": "ERP / Client Portal / EDI",
             "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
-            "key_data_points": "Final invoice, AR posting, Billing reconciliation",
+            "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "",
             "steps": [
                 _s("5.3.1", "Finalise Invoice",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Post finalised invoice to AR sub-ledger. System generates AR aging entry "
-                        "and updates deferred/unbilled revenue balances. Confirm GL impact is correct."),
-
+                   change="To-Be: auto-posted on client acceptance"),
                 _s("5.3.2", "Invoice Submission to Client",
                    sys="ERP / Client Portal / Email / EDI", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Issue invoice to client via email, client portal, etc."),
-
+                   change="To-Be: EDI or portal auto-submission where client systems permit"),
                 _s("5.3.3", "Reconciliation",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Invoice allocation to project codes",
-                   sla="2 days",
-                   desc="Perform billing reconciliations "
-                        "(e.g., from parent billing level to sub-project level)."),
+                   change="To-Be: receipt confirmation auto-triggers Collections workflow"),
             ],
         },
     ],
@@ -880,183 +860,129 @@ COLLECTIONS = {
     "id": "collections",
     "l1_seq": "6",
     "l1_name": "Collections",
-    "l1_color": "#0F766E",
-    "l1_description": (
-        "All activities to collect outstanding AR, manage overdue accounts, "
-        "reconcile receipts, and forecast cash."
-    ),
+    "l1_color": "#2563EB",
+    "l1_description": "Reconcile AR, apply cash receipts, manage overdue accounts through outreach and escalation, and maintain cash flow forecasts.",
     "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
     "system_tool": "ERP",
     "key_data_points": "NA",
     "critical_artefact": "",
-    "sla": "2 days",
+    "sla": "",
     "stages": [
 
-        # ── L2  6.1  Reconciliation & Analysis ───────────────────────────────
+        # ── L2-6.1  Reconciliation & Analysis ─────────────────────────────────
         {
             "id": "reconciliation-analysis",
             "seq": "6.1",
             "name": "Reconciliation & Analysis",
-            "description": (
-                "Maintain an accurate, up-to-date AR ledger. Reconcile cash receipts to invoices, "
-                "identify unapplied cash, and produce aging analysis for management review."
-            ),
-            "color": "#0F766E",
+            "description": "Run AR aging reports, apply cash receipts, investigate unallocated cash, and reconcile the AR ledger.",
+            "color": "#2563EB",
             "system_tool": "ERP",
             "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "",
             "steps": [
                 _s("6.1.1", "Run AR Aging Report",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Segmented AR aging balances",
                    artefact="AR aging report",
-                   sla="2 days",
-                   desc="Generate aging report from ERP and identify outstanding balances "
-                        "by client, due date, and days overdue."),
-
+                   change="To-Be: scheduled daily report auto-distributed to collections team",
+                   notes="Run each morning"),
                 _s("6.1.2", "Apply Cash Receipts",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Applied cash, Unapplied cash",
-                   sla="2 days",
-                   desc="Match and apply incoming payments to invoices in ERP."),
-
+                   change="To-Be: bank feed auto-matches payments to invoices; exceptions only require manual action",
+                   notes="Target: same-day application"),
                 _s("6.1.3", "Unapplied / Unallocated Cash Identified?",
                    sys="ERP", r="GFS", a="GFS",
                    type="Decision",
-                   outcomes="Yes – investigate | No – proceed",
-                   sla="2 days",
-                   desc="Identify unmatched or partially applied payments."),
-
+                   outcomes="Yes – investigate | No – proceed"),
                 _s("6.1.4", "Investigate & Resolve Unallocated Cash",
                    sys="ERP", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Investigate any short payments, overpayments or unallocated cash. "
-                        "Resolve discrepancies, disputes or allocation issues. "
-                        "Apply or refund as appropriate. Document resolution in ERP."),
-
+                   notes="SLA: resolve within 5 business days"),
                 _s("6.1.5", "AR Reconciliation",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Reconcile AR subledger to GL and confirm balances. "
-                        "Identify and resolve any differences."),
+                   notes="Weekly cadence; stored in ERP for audit"),
             ],
         },
 
-        # ── L2  6.2  Outreach & Escalation ───────────────────────────────────
+        # ── L2-6.2  Outreach & Escalation ─────────────────────────────────────
         {
             "id": "outreach-escalation",
             "seq": "6.2",
             "name": "Outreach & Escalation",
-            "description": (
-                "Proactive and structured client outreach for invoices approaching or past due date. "
-                "Manage escalations to resolve issues and secure payment."
-            ),
-            "color": "#B45309",
+            "description": "Identify overdue accounts, conduct tiered outreach, manage disputes, escalate, and implement credit holds where necessary.",
+            "color": "#2563EB",
             "system_tool": "ERP / Email",
-            "raci": {"r": "GFS", "a": "GFS", "c": "Operations"},
+            "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "To-Be: automated tiered reminder workflow replaces manual email outreach",
             "steps": [
                 _s("6.2.1", "Overdue Identification & Prioritisation",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Overdues, Collections prioritisation",
-                   sla="2 days",
-                   desc="Identify overdue receivables based on aging and payment terms. "
-                        "Prioritise accounts for collections outreach based on value, risk and aging."),
-
+                   outcomes="Paid – close | Overdue – escalate"),
                 _s("6.2.2", "Collections Outreach",
                    sys="ERP / Email", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Contact clients regarding overdue invoices (e.g., reminders, follow-ups)."),
-
+                   notes="Log all outreach in ERP"),
                 _s("6.2.3", "Dispute Identified?",
                    sys="ERP", r="GFS", a="GFS",
                    type="Decision",
-                   outcomes="Yes – dispute management | No – continue outreach",
-                   sla="2 days",
-                   desc="Determine whether a dispute or billing query has been raised by the client."),
-
+                   outcomes="Yes – dispute management | No – continue outreach"),
                 _s("6.2.4", "Dispute Management & Resolution",
-                   sys="ERP / Email", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Investigate and resolve billing disputes."),
-
+                   sys="ERP / Email", r="GFS", a="GFS", c="Operations"),
                 _s("6.2.5", "Escalation Management",
                    sys="ERP / Email", r="Operations", a="Operations",
-                   sla="2 days",
-                   desc="Escalate overdue or high-risk receivables internally where required."),
-
+                   change="To-Be: ERP auto-notifies AE at 15-day threshold"),
                 _s("6.2.6", "Payment Commitment Tracking",
                    sys="ERP", r="GFS", a="GFS",
-                   sla="2 days",
-                   desc="Record and monitor client payment commitments."),
-
+                   notes="Credit hold decision logged in ERP"),
                 _s("6.2.7", "Place Account on Credit Hold?",
                    sys="ERP", r="GFS", a="GFS", c="Operations",
                    type="Decision",
                    outcomes="Yes – implement hold | No – continue monitoring",
-                   sla="2 days",
-                   desc="Determine whether to suspend further project delivery or invoicing "
-                        "pending payment."),
-
+                   notes="Impact: pauses new project activations for the client"),
                 _s("6.2.8", "Implement Credit Hold & Notify Teams",
                    sys="ERP", r="GFS", a="GFS", c="Operations",
-                   sla="2 days",
-                   desc="Apply credit hold in ERP. Pause project activations and new order acceptance "
-                        "until resolved. Notify internal stakeholders (Operations, Finance)."),
+                   change="To-Be: ERP auto-flags and notifies impacted teams"),
             ],
         },
 
-        # ── L2  6.3  Cash Forecasting ─────────────────────────────────────────
+        # ── L2-6.3  Cash Forecasting ───────────────────────────────────────────
         {
             "id": "cash-forecasting",
             "seq": "6.3",
             "name": "Cash Forecasting",
-            "description": (
-                "Forecast expected cash collections based on receivables, payment behavior, "
-                "and client commitments."
-            ),
-            "color": "#7C3AED",
-            "system_tool": "ERP",
+            "description": "Update cash flow forecasts, perform variance analysis, and distribute the weekly cash forecasting reporting pack.",
+            "color": "#2563EB",
+            "system_tool": "ERP / EPM",
             "raci": {"r": "GFS", "a": "GFS", "c": "NA"},
             "key_data_points": "NA",
             "critical_artefact": "",
-            "sla": "2 days",
+            "sla": "",
+            "change_highlight": "To-Be: ERP → EPM auto-feed replaces manual forecast build",
             "steps": [
                 _s("6.3.1", "Forecast Update",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Cash flow forecast",
                    artefact="Cash flow forecast",
-                   sla="2 days",
-                   desc="Refresh cash forecast with expected cash inflows based on outstanding "
-                        "receivables, aging and payment terms."),
-
+                   change="To-Be: auto-extract and load to EPM cash model"),
                 _s("6.3.2", "Variance Analysis vs Prior Forecast",
                    sys="ERP", r="GFS", a="GFS",
-                   data="Variance analysis",
                    artefact="Variance analysis",
-                   sla="2 days",
-                   desc="Compare actual cash receipts to prior forecast. "
-                        "Identify and explain material variances."),
-
+                   notes="Material = variance >agreed threshold"),
                 _s("6.3.3", "Forecast Reporting",
                    sys="ERP", r="GFS", a="GFS",
                    artefact="CFF reporting pack",
-                   sla="2 days",
-                   desc="Prepare and present weekly cash forecast pack to central Finance. "
-                        "Include AR aging summary, collection risk flags and updated 13-week forecast."),
+                   notes="Weekly Monday morning finance pack"),
             ],
         },
     ],
 }
 
 
-# ── Public export ─────────────────────────────────────────────────────────────
 ALL_PROCESSES = [
     ORDER_CAPTURE,
+    DEMAND_SUPPLY,
     SERVICE_DELIVERY,
     REVENUE_RECOGNITION,
     INVOICING_BILLING,
