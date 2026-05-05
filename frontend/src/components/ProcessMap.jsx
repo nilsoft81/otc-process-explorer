@@ -3,12 +3,13 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 
 // ── Inizio brand color palette (L1 override) ──────────────────────────────────
 const INIZIO_COLORS = {
-  'order-capture':           '#7C3AED',  // Inizio Violet (primary)
-  'demand-supply-planning':  '#0E7490',  // Inizio Teal Dark
-  'service-delivery':        '#0891B2',  // Inizio Teal
-  'revenue-recognition':     '#16A34A',  // Forest Green
-  'invoicing-billing':       '#D97706',  // Amber
-  'collections':             '#2563EB',  // Inizio Blue
+  'order-capture':            '#7C3AED',  // Inizio Violet (primary)
+  'demand-supply-planning':   '#0E7490',  // Inizio Teal Dark
+  'service-delivery':         '#0891B2',  // Inizio Teal
+  'revenue-recognition':      '#16A34A',  // Forest Green
+  'invoicing-billing':        '#D97706',  // Amber
+  'collections':              '#2563EB',  // Inizio Blue
+  'project-close-reporting':  '#0F766E',  // Emerald - Project Close & Reporting
 }
 function procColor(proc) { return INIZIO_COLORS[proc.id] || proc.l1_color }
 
