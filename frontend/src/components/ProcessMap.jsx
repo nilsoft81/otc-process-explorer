@@ -437,12 +437,7 @@ export default function ProcessMap({ processes }) {
     const items = []
 
     if (col.type === 'L1') {
-      const node = l1Nodes.get(col.proc.id)
-      if (node && getRole(node) === role)
-        items.push({ node, level:'L1', base,
-          isSelected:false, childCount:col.proc.stages.length,
-          onClick:()=>togL1(col.proc.id), expandDir:'right' })
-      return items
+      return items  // L1 header strip handles display; no body box needed
     }
 
     if (col.type === 'L2') {
@@ -479,7 +474,7 @@ export default function ProcessMap({ processes }) {
   const visibleRoles = useMemo(() => {
     const seen = new Set()
     columns.forEach(col => {
-      if (col.type==='L1') { const n=l1Nodes.get(col.proc.id); if(n) seen.add(getRole(n)) }
+      if (col.type==='L1') { /* no body rows for collapsed L1 */ }
       else if (col.type==='L2') { seen.add(getRole(col.stage)) }
       else {
         seen.add(getRole(col.stage))
