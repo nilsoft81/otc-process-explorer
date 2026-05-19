@@ -322,12 +322,12 @@ function getRole(node) {
 
 function buildRoleOrder(processes) {
   const order = new Map()
-  const add = r => { if (r && r !== 'NA' && !order.has(r)) order.set(r, order.size) }
+  // Use getRole so 'Unassigned' is registered for nodes with an empty R field
+  const add = r => { if (r && !order.has(r)) order.set(r, order.size) }
   processes.forEach(proc => {
-    add(proc.raci?.r)
     proc.stages.forEach(st => {
-      add(st.raci?.r)
-      st.steps.forEach(function walk(s) { add(s.raci?.r); s.children?.forEach(walk) })
+      add(getRole(st))
+      st.steps.forEach(function walk(s) { add(getRole(s)); s.children?.forEach(walk) })
     })
   })
   return order
