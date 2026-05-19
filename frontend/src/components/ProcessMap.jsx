@@ -348,7 +348,7 @@ const ROLE_W = 176
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ProcessMap({ processes }) {
-  const [expL1, setExpL1] = useState(new Set())
+  const [expL1, setExpL1] = useState(() => new Set(processes.map(p => p.id)))
   const [expL2, setExpL2] = useState(new Set())
   const [expL3, setExpL3] = useState(new Set())
 
@@ -498,6 +498,7 @@ export default function ProcessMap({ processes }) {
   const cellRefs      = useRef({})   // ci_role → cell div (fallback)
   const boxFirstRefs  = useRef({})   // ci_role → first NodeBox/DiamondBox in cell
   const boxLastRefs   = useRef({})   // ci_role → last  NodeBox/DiamondBox in cell
+  const seqBoxRefs    = useRef({})   // seq     → any  NodeBox/DiamondBox DOM el
   const [svgArrows, setSvgArrows] = useState([])
   const [svgSize,   setSvgSize]   = useState({ w: 2000, h: 2000 })
 
@@ -519,9 +520,55 @@ export default function ProcessMap({ processes }) {
     })
 
     const arrs = []
+    const decisionCols = new Set()  // ci values whose transition is handled by decision arrows
 
+    // ── Pass 1: decision YES / NO arrows (seq-targeted) ──────────────────────
+    columns.forEach((col, ci) => {
+      if (col.type !== 'SEG') return
+      const steps = col.seg.steps
+      if (!steps.length) return
+      const lastL3 = steps[steps.length - 1]
+      if (lastL3.step_type !== 'Decision' || !lastL3.decision_outcomes) return
+      // Only treat as decision source when the diamond itself is the last visible item
+      // (i.e. not when its L4 children are expanded)
+      if (expL3.has(lastL3.seq) && lastL3.children?.length) return
+
+      const fromEl = seqBoxRefs.current[lastL3.seq]
+      if (!fromEl) return
+      const fr  = toC(fromEl.getBoundingClientRect())
+      const col_color = procColor(col.proc)
+      let anyDrawn = false
+
+      lastL3.decision_outcomes.split('|').map(o => o.trim()).forEach((out, oi) => {
+        const m = out.match(/proceed to\s+(.+)/i)
+        if (!m) return
+        const targetSeq = m[1].trim()
+        const toEl = seqBoxRefs.current[targetSeq]
+        if (!toEl) return
+
+        const tr = toC(toEl.getBoundingClientRect())
+        const isYes = oi === 0   // first outcome = YES (right exit); second = NO (bottom exit)
+        const x1   = isYes ? fr.right        : fr.left + DIAG / 2
+        const y1   = isYes ? fr.cy           : fr.bottom
+        const x2   = tr.left
+        const y2   = tr.cy
+        const midX = (x1 + x2) / 2
+
+        arrs.push({ x1, y1, x2, y2, midX, color: col_color,
+          id: `dec_${lastL3.seq}_${oi}`,
+          label: isYes ? 'YES' : 'NO',
+          fromBottom: !isYes })
+        anyDrawn = true
+      })
+
+      if (anyDrawn) decisionCols.add(ci)
+    })
+
+    // ── Pass 2: regular column-to-column flow arrows ──────────────────────────
     columns.forEach((col, ci) => {
       if (col.type === 'L1') return
+      if (decisionCols.has(ci)) return   // decision arrows already cover this
+
       const nextCol = columns[ci + 1]
       if (!nextCol || nextCol.type === 'L1') return
       if (col.proc.id !== nextCol.proc.id) return
@@ -529,7 +576,6 @@ export default function ProcessMap({ processes }) {
       const fromRole = col.type === 'L2' ? getRole(col.stage) : col.seg.role
       const toRole   = nextCol.type === 'L2' ? getRole(nextCol.stage) : nextCol.seg.role
 
-      // Skip if same role and an inline right-arrow already handles this transition
       const inlineHandled = fromRole === toRole && (
         (col.type === 'SEG' && col.hasNext) || col.type === 'L2'
       )
@@ -543,21 +589,17 @@ export default function ProcessMap({ processes }) {
 
       const fr = toC(fromEl.getBoundingClientRect())
       const tr = toC(toEl.getBoundingClientRect())
+      const x1 = fr.right, y1 = fr.cy
+      const x2 = tr.left,  y2 = tr.cy
 
-      const x1 = fr.right
-      const y1 = fr.cy
-      const x2 = tr.left
-      const y2 = tr.cy
-      const midX = (x1 + x2) / 2
-
-      arrs.push({ x1, y1, x2, y2, midX, color: procColor(col.proc),
+      arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: procColor(col.proc),
         id: `${col.id}_to_${ci+1}` })
     })
 
     const grid = gridRef.current
     if (grid) setSvgSize({ w: grid.scrollWidth, h: grid.scrollHeight })
     setSvgArrows(arrs)
-  }, [columns])
+  }, [columns, expL3])
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => computeArrows())
@@ -685,6 +727,7 @@ export default function ProcessMap({ processes }) {
                                 boxRef={el => {
                                   if (isFirstBox) boxFirstRefs.current[cellKey] = el
                                   if (isLastBox)  boxLastRefs.current[cellKey]  = el
+                                  seqBoxRefs.current[item.node.seq] = el
                                 }}
                               />
                             </React.Fragment>
@@ -738,8 +781,20 @@ export default function ProcessMap({ processes }) {
         </defs>
         {svgArrows.map(a => {
           const arrowColor = mixWhite(a.color, 0.15)
-          const d  = `M${a.x1},${a.y1} L${a.midX},${a.y1} L${a.midX},${a.y2} L${a.x2},${a.y2}`
           const AH = 5
+          let d, labelX, labelY
+          if (a.fromBottom) {
+            // NO path: bottom exit → step down 20px → right to midX → to target y → arrive
+            const stepY = a.y1 + 20
+            d = `M${a.x1},${a.y1} L${a.x1},${stepY} L${a.midX},${stepY} L${a.midX},${a.y2} L${a.x2},${a.y2}`
+            labelX = a.midX
+            labelY = stepY - 4
+          } else {
+            // YES / regular path: right exit → midX → drop/rise → arrive
+            d = `M${a.x1},${a.y1} L${a.midX},${a.y1} L${a.midX},${a.y2} L${a.x2},${a.y2}`
+            labelX = a.midX
+            labelY = Math.min(a.y1, a.y2) - 4
+          }
           const ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
           return (
             <g key={a.id}>
@@ -749,6 +804,11 @@ export default function ProcessMap({ processes }) {
                 strokeLinecap="square" strokeLinejoin="miter"/>
               <path d={ah} fill="none" stroke={arrowColor} strokeWidth="1.5"
                 strokeLinecap="round" strokeLinejoin="round"/>
+              {a.label && (
+                <text x={labelX} y={labelY} fontSize="8" fill={arrowColor}
+                  textAnchor="middle" fontWeight="700"
+                  style={{fontFamily:'system-ui,sans-serif'}}>{a.label}</text>
+              )}
             </g>
           )
         })}
