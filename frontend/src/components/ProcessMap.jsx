@@ -348,7 +348,7 @@ const ROLE_W = 176
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ProcessMap({ processes }) {
-  const [expL1, setExpL1] = useState(() => new Set(processes.map(p => p.id)))
+  const [expL1, setExpL1] = useState(new Set())
   const [expL2, setExpL2] = useState(new Set())
   const [expL3, setExpL3] = useState(new Set())
 
