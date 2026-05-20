@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import ProcessMap from './components/ProcessMap'
-import { Activity, RefreshCw, Download, Image } from 'lucide-react'
+import UploadPage from './components/UploadPage'
+import { Activity, RefreshCw, Download, Image, Upload } from 'lucide-react'
 import { downloadBPMN } from './utils/bpmnExport'
 import html2canvas from 'html2canvas'
+
+const API = 'https://otc-process-explorer.onrender.com'
 
 const RACI_LEGEND = [
   { short: 'R', label: 'Responsible', dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-600/40', bg: 'bg-emerald-900/30' },
@@ -14,14 +17,24 @@ export default function App() {
   const [processes, setProcesses] = useState(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
+  const [page, setPage]           = useState('map') // 'map' | 'upload'
   const mapRef = useRef(null)
 
-  useEffect(() => {
-    fetch('https://otc-process-explorer.onrender.com/api/processes')
+  const fetchProcesses = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    fetch(`${API}/api/processes`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(json => { setProcesses(json); setLoading(false) })
       .catch(err => { setError(err.message); setLoading(false) })
   }, [])
+
+  useEffect(() => { fetchProcesses() }, [fetchProcesses])
+
+  function handleUploadSuccess() {
+    setPage('map')
+    fetchProcesses()
+  }
 
   function downloadJSON() {
     const blob = new Blob(
@@ -46,6 +59,16 @@ export default function App() {
     } catch (e) {
       console.error('Image export failed:', e)
     }
+  }
+
+  // Upload page
+  if (page === 'upload') {
+    return (
+      <UploadPage
+        onBack={() => setPage('map')}
+        onSuccess={handleUploadSuccess}
+      />
+    )
   }
 
   if (loading) {
@@ -96,6 +119,16 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+
+            {/* Upload Data */}
+            <button
+              onClick={() => setPage('upload')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-medium hover:bg-amber-500/20 transition-colors flex-shrink-0"
+            >
+              <Upload size={13} />
+              Upload Data
+            </button>
+
             {/* Download BPMN */}
             <button
               onClick={() => downloadBPMN(processes[0])}
@@ -139,28 +172,24 @@ export default function App() {
 
             {/* Indicators legend */}
             <div className="flex items-center gap-2 flex-wrap pl-2 border-l border-slate-700">
-              {/* Critical Artefact */}
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
                 bg-amber-900/30 ring-amber-600/40">
                 <span className="text-amber-400 font-bold">📎</span>
                 <span className="text-amber-300 font-bold">Artefact</span>
                 <span className="text-slate-400">Critical document</span>
               </span>
-              {/* SLA */}
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
                 bg-blue-900/30 ring-blue-600/40">
                 <span className="text-blue-400 font-bold">⏱</span>
                 <span className="text-blue-300 font-bold">SLA</span>
                 <span className="text-slate-400">Service level target</span>
               </span>
-              {/* AI Agent */}
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
                 bg-violet-900/30 ring-violet-600/40">
                 <span className="text-violet-300 font-bold">🤖</span>
                 <span className="text-violet-300 font-bold">AI Agent</span>
                 <span className="text-slate-400">AI-responsible step</span>
               </span>
-              {/* Decision */}
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
                 bg-slate-800/60 ring-slate-600/40">
                 <svg width="14" height="14" viewBox="0 0 14 14" className="flex-shrink-0">
@@ -170,7 +199,6 @@ export default function App() {
                 <span className="text-slate-300 font-bold">Decision</span>
                 <span className="text-slate-400">Gateway with Yes/No paths</span>
               </span>
-              {/* To-Be */}
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
                 bg-slate-800/40 ring-slate-600/40">
                 <span className="text-violet-400 font-bold">Δ</span>
