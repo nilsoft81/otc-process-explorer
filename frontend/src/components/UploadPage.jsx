@@ -4,21 +4,17 @@ import { Upload, CheckCircle, XCircle, ArrowLeft, FileSpreadsheet, AlertCircle }
 const API = 'https://otc-process-explorer.onrender.com'
 
 const REQUIRED_COLUMNS = [
-  { col: 'A',  name: 'AI Agent',                description: 'Flag for AI Agent steps (e.g. Y / Yes)' },
-  { col: 'B',  name: 'System / Tool',            description: 'System or tool used in the step' },
-  { col: 'C',  name: 'Level',                    description: 'Process level (L1, L2, L3, L4)' },
-  { col: 'D',  name: 'Step Number / Seq',         description: 'Sequence number e.g. 1 / 1.1 / 1.1.1 / 1.1.1.1' },
-  { col: 'E',  name: 'Step Name',                description: 'Name of the process step' },
-  { col: 'F',  name: 'Description',              description: 'Detailed description of the step' },
-  { col: 'G',  name: 'Step Type',                description: 'Process, Decision, Start, or Automated — Decisions include If yes/no routing' },
-  { col: 'H',  name: 'Automated',                description: 'Whether the step is fully automated' },
-  { col: 'Q',  name: 'RACI – Responsible',       description: 'Who is responsible for executing the step' },
-  { col: 'R',  name: 'RACI – Accountable',       description: 'Who is ultimately accountable' },
-  { col: 'S',  name: 'RACI – Contributing',      description: 'Who is consulted or contributes' },
-  { col: 'X',  name: 'Critical Artefact',        description: 'Key document or deliverable produced' },
-  { col: 'Y',  name: 'SLA',                      description: 'Service level agreement / time target' },
-  { col: 'Z',  name: 'Key Data Points',          description: 'Key data fields and dimensionality' },
-  { col: 'AB', name: 'Change Highlight',         description: 'To-Be process change or delta' },
+  { col: 'B',  name: 'AI Agent',                        description: 'Flag for AI Agent steps (e.g. Y / Yes)' },
+  { col: 'C',  name: 'System / Tool',                   description: 'System or tool used in the step' },
+  { col: 'D',  name: 'Level',                           description: 'Process level (L1, L2, L3, L4)' },
+  { col: 'E',  name: 'Step Number / Seq',               description: 'Sequence number e.g. 1 / 1.1 / 1.1.1 / 1.1.1.1' },
+  { col: 'F',  name: 'Step Name',                       description: 'Name of the process step' },
+  { col: 'G',  name: 'Step Description',                description: 'Detailed description of the step' },
+  { col: 'H',  name: 'Step Type',                       description: 'Process, Decision, Start, or Automated — Decisions include If yes/no routing' },
+  { col: 'I',  name: 'Automated',                       description: 'Whether the step is fully automated (Y/N/Partial)' },
+  { col: 'R',  name: 'RACI – Responsible (R)',          description: 'Who is responsible for executing the step' },
+  { col: 'S',  name: 'RACI – Accountable (A)',          description: 'Who is ultimately accountable' },
+  { col: 'T',  name: 'RACI – Contributing / Informed (I)', description: 'Who is informed or contributes' },
 ]
 
 export default function UploadPage({ onBack, onSuccess }) {
@@ -208,8 +204,9 @@ export default function UploadPage({ onBack, onSuccess }) {
               <p className="text-slate-400 text-sm mt-1">
                 Your Excel must have a{' '}
                 <code className="text-teal-300 bg-slate-700/60 px-1 rounded">Process Design</code>{' '}
-                tab with all 15 columns below. Headers must be in <strong className="text-slate-300">row 4</strong>.
-                Columns I–P, AA, and AC onward are not read.
+                tab with all 11 columns below. Main headers must be in <strong className="text-slate-300">row 5</strong>{' '}
+                (row 4 = filter markers, row 6 = sub-headers, data from row 7).
+                Column A and columns J–Q are not read.
               </p>
             </div>
             <div className="overflow-x-auto">

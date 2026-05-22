@@ -1,19 +1,19 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
-// ── Inizio brand color palette (L1 override) ──────────────────────────────────
+// ── Inizio brand color palette ─────────────────────────────────────────────────
 const INIZIO_COLORS = {
-  'order-capture':            '#7C3AED',  // Inizio Violet (primary)
-  'demand-supply-planning':   '#0E7490',  // Inizio Teal Dark
-  'service-delivery':         '#0891B2',  // Inizio Teal
-  'revenue-recognition':      '#16A34A',  // Forest Green
-  'invoicing-billing':        '#D97706',  // Amber
-  'collections':              '#2563EB',  // Inizio Blue
-  'project-close-reporting':  '#0F766E',  // Emerald - Project Close & Reporting
+  'order-capture':            '#7C3AED',
+  'demand-supply-planning':   '#0E7490',
+  'service-delivery':         '#0891B2',
+  'revenue-recognition':      '#16A34A',
+  'invoicing-billing':        '#D97706',
+  'collections':              '#2563EB',
+  'project-close-reporting':  '#0F766E',
 }
 function procColor(proc) { return INIZIO_COLORS[proc.id] || proc.l1_color }
 
-// ── Color helpers ─────────────────────────────────────────────────────────────
+// ── Color helpers ──────────────────────────────────────────────────────────────
 function mixWhite(hex, t) {
   const h = hex.replace('#', '')
   const r = parseInt(h.slice(0,2), 16)
@@ -26,12 +26,12 @@ const OMBRE   = { L1:0.18, L2:0.40, L3:0.60, L4:0.75 }
 const TEXT_ON = { L1:'#fff', L2:'#fff', L3:'#1e293b', L4:'#334155' }
 const MUTED   = { L1:'rgba(255,255,255,0.78)', L2:'rgba(255,255,255,0.82)', L3:'#64748b', L4:'#94a3b8' }
 
-function bg(hex, level)    { return mixWhite(hex, OMBRE[level] ?? 0.5) }
-function tc(level)         { return TEXT_ON[level] ?? '#1e293b' }
-function mc(level)         { return MUTED[level]   ?? '#94a3b8' }
-function darkBg(hex, level){ return mixWhite(hex, Math.max(0, (OMBRE[level] ?? 0.5) - 0.18)) }
+function bg(hex, level)     { return mixWhite(hex, OMBRE[level] ?? 0.5) }
+function tc(level)          { return TEXT_ON[level] ?? '#1e293b' }
+function mc(level)          { return MUTED[level]   ?? '#94a3b8' }
+function darkBg(hex, level) { return mixWhite(hex, Math.max(0, (OMBRE[level] ?? 0.5) - 0.18)) }
 
-// ── AI / Bot icon ─────────────────────────────────────────────────────────────
+// ── AI / Bot icon ──────────────────────────────────────────────────────────────
 function BotIcon({ color, size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -46,26 +46,26 @@ function BotIcon({ color, size = 18 }) {
   )
 }
 
-// ── NodeFooter ────────────────────────────────────────────────────────────────
+// ── NodeFooter (system + RACI) ─────────────────────────────────────────────────
 function NodeFooter({ node, textC, mutedC }) {
-  const { raci, system_tool, key_data_points, change_highlight,
-          decision_outcomes, critical_artefact, sla } = node
-  const anyRaci  = raci  && Object.values(raci).some(v => v && v !== 'NA')
-  const hasSys   = system_tool   && system_tool   !== 'NA'
-  const hasData  = key_data_points && key_data_points !== 'NA'
-  const hasOuts  = !!decision_outcomes
-  const hasChg   = !!change_highlight
-  const hasArt   = critical_artefact && critical_artefact !== '' && critical_artefact !== 'NA'
-  const hasSla   = sla && sla !== '' && sla !== 'NA'
-  if (!anyRaci && !hasSys && !hasData && !hasOuts && !hasChg && !hasArt && !hasSla) return null
+  const { raci, system_tool, decision_outcomes } = node
+  const anyRaci = raci && Object.values(raci).some(v => v && v !== 'NA')
+  const hasSys  = system_tool && system_tool !== 'NA'
+  const hasOuts = !!decision_outcomes
+  if (!anyRaci && !hasSys && !hasOuts) return null
 
-  const pill = (label, val, pbg='rgba(0,0,0,0.18)', pbd='rgba(255,255,255,0.18)') =>
+  const pill = (label, val) =>
     val && val !== 'NA' ? (
       <span key={label} style={{
-        display:'inline-flex', alignItems:'center', gap:3,
-        padding:'1px 5px', borderRadius:4, fontSize:9, fontWeight:600,
-        background:pbg, color:textC, border:`1px solid ${pbd}`,
-      }}>{label} <span style={{fontWeight:400,opacity:0.9}}>{val}</span></span>
+        display:'inline-flex', alignItems:'flex-start', gap:3,
+        padding:'2px 6px', borderRadius:4, fontSize:9, fontWeight:600,
+        background:'rgba(0,0,0,0.18)', color:textC,
+        border:'1px solid rgba(255,255,255,0.18)',
+        flexWrap:'wrap', lineHeight:1.35,
+      }}>
+        <span style={{flexShrink:0}}>{label}</span>
+        <span style={{fontWeight:400, opacity:0.9, wordBreak:'break-word'}}>{val}</span>
+      </span>
     ) : null
 
   return (
@@ -80,30 +80,22 @@ function NodeFooter({ node, textC, mutedC }) {
         </div>
       )}
       {anyRaci && (
-        <div style={{display:'flex',flexWrap:'wrap',gap:2}}>
-          {pill('R',raci.r)}{pill('A',raci.a)}{pill('C',raci.c)}
+        <div style={{display:'flex',flexDirection:'column',gap:2}}>
+          {pill('R:', raci.r)}
+          {pill('A:', raci.a)}
+          {pill('I:', raci.i ?? raci.c)}
         </div>
       )}
-      {(hasArt || hasSla) && (
-        <div style={{display:'flex',flexWrap:'wrap',gap:2}}>
-          {hasArt && pill('📎', critical_artefact, 'rgba(217,119,6,0.35)', 'rgba(217,119,6,0.5)')}
-          {hasSla && pill('⏱', sla,               'rgba(37,99,235,0.28)', 'rgba(37,99,235,0.42)')}
-        </div>
-      )}
-      {hasOuts && decision_outcomes.split('|').map((o,i)=>(
-        <span key={i} style={{fontSize:9,color:mutedC,display:'flex',gap:2,lineHeight:1.3}}>
+      {hasOuts && decision_outcomes.split('|').map((o,idx)=>(
+        <span key={idx} style={{fontSize:9,color:mutedC,display:'flex',gap:2,lineHeight:1.3}}>
           <span style={{color:textC}}>▸</span><span>{o.trim()}</span>
         </span>
       ))}
-      {hasData && <p style={{fontSize:9,color:mutedC,margin:0,lineHeight:1.3}}>
-        <b>Data:</b> {key_data_points}</p>}
-      {hasChg && <p style={{fontSize:9,color:mutedC,margin:0,fontStyle:'italic',lineHeight:1.3}}>
-        <b>Δ</b> {change_highlight}</p>}
     </div>
   )
 }
 
-// ── NodeBox (regular process steps) ──────────────────────────────────────────
+// ── NodeBox (regular process steps) ───────────────────────────────────────────
 function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expandDir='down', boxRef }) {
   const fill  = bg(baseColor, level)
   const dark  = darkBg(baseColor, level)
@@ -136,17 +128,12 @@ function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expa
             <BotIcon color={textC} size={18}/> AI Agent
           </span>
         )}
-        {node.step_type?.toLowerCase().includes('decision') && (
-          <span style={{fontSize:9,padding:'1px 4px',borderRadius:3,
-            background:'rgba(0,0,0,0.2)',color:textC}}>◇ Decision</span>
-        )}
       </div>
-      <p style={{fontSize:11,fontWeight:600,lineHeight:1.35,color:textC,margin:0}}>{node.name}</p>
+      <p style={{fontSize:11,fontWeight:600,lineHeight:1.35,color:textC,margin:0}}>
+        {node.name}
+      </p>
       {node.description && (
-        <p style={{fontSize:10,color:mutedC,margin:'3px 0 0',lineHeight:1.4,
-          ...(level==='L1'||level==='L2' ? {
-            display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'
-          } : {})}}>
+        <p style={{fontSize:10,color:mutedC,margin:'3px 0 0',lineHeight:1.4}}>
           {node.description}
         </p>
       )}
@@ -169,12 +156,11 @@ function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expa
   )
 }
 
-// ── DiamondBox (decision nodes) ───────────────────────────────────────────────
+// ── DiamondBox (decision nodes) ────────────────────────────────────────────────
 const DIAG  = 164
-const SIDE  = Math.round(DIAG / Math.SQRT2)   // ≈ 116px inner square
-const INSET = Math.round((DIAG - SIDE) / 2)   // ≈ 24px
+const SIDE  = Math.round(DIAG / Math.SQRT2)
+const INSET = Math.round((DIAG - SIDE) / 2)
 
-// Map first word of outcome to short direction label
 function outcomeShort(txt) {
   const w = txt.split(/[\s–—-]/)[0]
   const M = { Yes:'YES', No:'NO', Approved:'OK', Rejected:'BACK',
@@ -194,29 +180,25 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
     ? node.decision_outcomes.split('|').map(o => o.trim()).slice(0, 3)
     : []
 
-  const isPos = t => /yes|proceed|approv|align/i.test(t)
-  const isNeg = t => /no\b|reject|discrepan|dispute|query|chase|return/i.test(t)
   const outColor = () => dark
+  const STUB = 24
+  const HD   = 5
 
-  const STUB = 24  // exit stub length (px)
-  const HD   = 5   // arrowhead half-size
-
-  // Right, bottom, left exit geometry for up to 3 outcomes
   const exits = [
-    { // → right (typically "Yes / forward")
-      lx1: DIAG,   ly1: DIAG/2,
+    { // → right (YES)
+      lx1: DIAG,      ly1: DIAG/2,
       lx2: DIAG+STUB, ly2: DIAG/2,
       hd: `M${DIAG+STUB-HD},${DIAG/2-HD} L${DIAG+STUB+HD},${DIAG/2} L${DIAG+STUB-HD},${DIAG/2+HD}`,
       tx: DIAG+STUB+HD+3, ty: DIAG/2+3, ta: 'start',
     },
-    { // ↓ bottom (typically "No / back")
-      lx1: DIAG/2,   ly1: DIAG,
-      lx2: DIAG/2,   ly2: DIAG+STUB,
+    { // ↓ bottom (NO)
+      lx1: DIAG/2,    ly1: DIAG,
+      lx2: DIAG/2,    ly2: DIAG+STUB,
       hd: `M${DIAG/2-HD},${DIAG+STUB-HD} L${DIAG/2},${DIAG+STUB+HD} L${DIAG/2+HD},${DIAG+STUB-HD}`,
       tx: DIAG/2, ty: DIAG+STUB+HD+10, ta: 'middle',
     },
-    { // ← left (third outcome if present)
-      lx1: 0,    ly1: DIAG/2,
+    { // ← left (third outcome)
+      lx1: 0,     ly1: DIAG/2,
       lx2: -STUB, ly2: DIAG/2,
       hd: `M${-STUB+HD},${DIAG/2-HD} L${-STUB-HD},${DIAG/2} L${-STUB+HD},${DIAG/2+HD}`,
       tx: -STUB-HD-3, ty: DIAG/2+3, ta: 'end',
@@ -224,11 +206,14 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   ]
 
   return (
-    <div ref={boxRef} onClick={onClick}
+    <div
+      ref={boxRef}
+      onClick={onClick}
+      data-diamond="true"
       style={{ position:'relative', flexShrink:0, width:DIAG, height:DIAG,
-        cursor: onClick ? 'pointer' : 'default', overflow:'visible' }}>
-
-      {/* Rotated square = diamond shape */}
+        cursor: onClick ? 'pointer' : 'default', overflow:'visible' }}
+    >
+      {/* Rotated square = diamond */}
       <div style={{
         position:'absolute', top:INSET, left:INSET, width:SIDE, height:SIDE,
         transform:'rotate(45deg)', background:fill, border:`2px solid ${dark}`,
@@ -237,7 +222,7 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
           : '0 1px 5px rgba(0,0,0,0.13)',
       }}/>
 
-      {/* Content — centered, stays horizontal */}
+      {/* Content — centered, horizontal */}
       <div style={{
         position:'absolute', inset:0,
         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
@@ -255,17 +240,20 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
           {node.name}
         </p>
         {node.raci?.r && node.raci.r !== 'NA' && (
-          <span style={{fontSize:8,color:mutedC,lineHeight:1}}>R: {node.raci.r}</span>
+          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+            R: {node.raci.r}
+          </span>
         )}
-        {node.sla && node.sla !== '' && node.sla !== 'NA' && (
-          <span style={{fontSize:8,color:mutedC}}>⏱ {node.sla}</span>
+        {node.raci?.a && node.raci.a !== 'NA' && (
+          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+            A: {node.raci.a}
+          </span>
         )}
       </div>
 
-      {/* Decision exit arrows — exiting from diamond points */}
+      {/* Decision exit stubs */}
       {outcomes.length > 0 && (
-        <svg style={{position:'absolute',top:0,left:0,overflow:'visible',
-                     pointerEvents:'none',zIndex:6}}
+        <svg style={{position:'absolute',top:0,left:0,overflow:'visible',pointerEvents:'none',zIndex:6}}
              width={DIAG} height={DIAG}>
           {outcomes.map((out, i) => {
             if (i >= exits.length) return null
@@ -274,12 +262,9 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
             const lbl = outcomeShort(out)
             return (
               <g key={i}>
-                {/* Stub line */}
                 <line x1={e.lx1} y1={e.ly1} x2={e.lx2} y2={e.ly2}
                   stroke={col} strokeWidth="1.5" strokeLinecap="round"/>
-                {/* Arrowhead */}
                 <path d={e.hd} fill={col}/>
-                {/* Short label */}
                 <text x={e.tx} y={e.ty} fontSize="8" fill={col}
                   textAnchor={e.ta} fontWeight="700"
                   style={{fontFamily:'system-ui,sans-serif'}}>{lbl}</text>
@@ -292,7 +277,7 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   )
 }
 
-// ── Down-arrow connector (within-cell, between stacked items) ─────────────────
+// ── Down-arrow connector ───────────────────────────────────────────────────────
 function DownArrow({ color }) {
   return (
     <div style={{display:'flex',alignItems:'center',paddingLeft:20,margin:'3px 0'}}>
@@ -304,7 +289,7 @@ function DownArrow({ color }) {
   )
 }
 
-// ── Right-arrow connector (same role, consecutive segments) ───────────────────
+// ── Right-arrow connector ──────────────────────────────────────────────────────
 function RightArrow({ color }) {
   return (
     <svg width="28" height="12" viewBox="0 0 28 12" fill="none" style={{flexShrink:0}}>
@@ -314,7 +299,7 @@ function RightArrow({ color }) {
   )
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// ── Utilities ──────────────────────────────────────────────────────────────────
 function getRole(node) {
   const r = node?.raci?.r
   return (r && r !== 'NA') ? r : 'Unassigned'
@@ -322,7 +307,6 @@ function getRole(node) {
 
 function buildRoleOrder(processes) {
   const order = new Map()
-  // Use getRole so 'Unassigned' is registered for nodes with an empty R field
   const add = r => { if (r && !order.has(r)) order.set(r, order.size) }
   processes.forEach(proc => {
     proc.stages.forEach(st => {
@@ -346,7 +330,7 @@ function segments(steps) {
 
 const ROLE_W = 176
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function ProcessMap({ processes }) {
   const [expL1, setExpL1] = useState(new Set())
   const [expL2, setExpL2] = useState(new Set())
@@ -383,14 +367,12 @@ export default function ProcessMap({ processes }) {
     const m = new Map()
     processes.forEach(proc => m.set(proc.id, {
       seq: `L${proc.l1_seq}`, name: proc.l1_name, description: proc.l1_description,
-      system_tool: proc.system_tool, raci: proc.raci,
-      key_data_points: proc.key_data_points, step_type: null,
-      critical_artefact: proc.critical_artefact || '', sla: proc.sla || '',
+      system_tool: proc.system_tool, raci: proc.raci, step_type: null,
     }))
     return m
   }, [processes])
 
-  // ── Column array ──────────────────────────────────────────────────────────
+  // ── Column array ─────────────────────────────────────────────────────────────
   const columns = useMemo(() => {
     const cols = []
     processes.forEach(proc => {
@@ -407,7 +389,7 @@ export default function ProcessMap({ processes }) {
                 type:'SEG', id:`seg-${stage.id}-${si}`,
                 seg, stage, proc, si,
                 isFirst:  si === 0,
-                prevRole: si > 0            ? segs[si-1].role : null,
+                prevRole: si > 0             ? segs[si-1].role : null,
                 nextRole: si < segs.length-1 ? segs[si+1].role : null,
                 hasNext:  si < segs.length-1,
               })
@@ -419,7 +401,6 @@ export default function ProcessMap({ processes }) {
     return cols
   }, [processes, expL1, expL2])
 
-  // L1 group header spans
   const l1Groups = useMemo(() => {
     const groups = []
     columns.forEach((c, i) => {
@@ -431,14 +412,11 @@ export default function ProcessMap({ processes }) {
     return groups
   }, [columns])
 
-  // Cell items for (col, role)
   function getCellItems(col, role) {
     const base = procColor(col.proc)
     const items = []
 
-    if (col.type === 'L1') {
-      return items  // L1 header strip handles display; no body box needed
-    }
+    if (col.type === 'L1') return items
 
     if (col.type === 'L2') {
       if (getRole(col.stage) === role)
@@ -474,7 +452,7 @@ export default function ProcessMap({ processes }) {
   const visibleRoles = useMemo(() => {
     const seen = new Set()
     columns.forEach(col => {
-      if (col.type==='L1') { /* no body rows for collapsed L1 */ }
+      if (col.type==='L1') { /* collapsed */ }
       else if (col.type==='L2') { seen.add(getRole(col.stage)) }
       else {
         seen.add(getRole(col.stage))
@@ -487,13 +465,13 @@ export default function ProcessMap({ processes }) {
     return Array.from(roleOrder.keys()).filter(r => seen.has(r))
   }, [columns, expL3, roleOrder, l1Nodes])
 
-  // ── Refs for SVG arrow overlay ────────────────────────────────────────────
-  const scrollRef     = useRef(null)
-  const gridRef       = useRef(null)
-  const cellRefs      = useRef({})   // ci_role → cell div (fallback)
-  const boxFirstRefs  = useRef({})   // ci_role → first NodeBox/DiamondBox in cell
-  const boxLastRefs   = useRef({})   // ci_role → last  NodeBox/DiamondBox in cell
-  const seqBoxRefs    = useRef({})   // seq     → any  NodeBox/DiamondBox DOM el
+  // ── Arrow overlay refs ────────────────────────────────────────────────────────
+  const scrollRef    = useRef(null)
+  const gridRef      = useRef(null)
+  const cellRefs     = useRef({})
+  const boxFirstRefs = useRef({})
+  const boxLastRefs  = useRef({})
+  const seqBoxRefs   = useRef({})
   const [svgArrows, setSvgArrows] = useState([])
   const [svgSize,   setSvgSize]   = useState({ w: 2000, h: 2000 })
 
@@ -505,7 +483,6 @@ export default function ProcessMap({ processes }) {
     const sl = scroll.scrollLeft
     const st = scroll.scrollTop
 
-    // Viewport → scroll-content coordinates
     const toC = rect => ({
       top:    rect.top    - scrollRect.top  + st,
       bottom: rect.bottom - scrollRect.top  + st,
@@ -515,22 +492,20 @@ export default function ProcessMap({ processes }) {
     })
 
     const arrs = []
-    const decisionCols = new Set()  // ci values whose transition is handled by decision arrows
+    const decisionCols = new Set()
 
-    // ── Pass 1: decision YES / NO arrows (seq-targeted) ──────────────────────
+    // ── Pass 1: decision YES / NO outgoing arrows ────────────────────────────
     columns.forEach((col, ci) => {
       if (col.type !== 'SEG') return
       const steps = col.seg.steps
       if (!steps.length) return
       const lastL3 = steps[steps.length - 1]
       if (lastL3.step_type !== 'Decision' || !lastL3.decision_outcomes) return
-      // Only treat as decision source when the diamond itself is the last visible item
-      // (i.e. not when its L4 children are expanded)
       if (expL3.has(lastL3.seq) && lastL3.children?.length) return
 
       const fromEl = seqBoxRefs.current[lastL3.seq]
       if (!fromEl) return
-      const fr  = toC(fromEl.getBoundingClientRect())
+      const fr = toC(fromEl.getBoundingClientRect())
       const col_color = procColor(col.proc)
       let anyDrawn = false
 
@@ -542,27 +517,31 @@ export default function ProcessMap({ processes }) {
         if (!toEl) return
 
         const tr = toC(toEl.getBoundingClientRect())
-        const isYes = oi === 0   // first outcome = YES (right exit); second = NO (bottom exit)
-        const x1   = isYes ? fr.right        : fr.left + DIAG / 2
-        const y1   = isYes ? fr.cy           : fr.bottom
-        const x2   = tr.left
-        const y2   = tr.cy
+        const isYes = oi === 0
+        const toDiamond = toEl.dataset?.diamond === 'true'
+
+        const x1 = isYes ? fr.right        : fr.left + DIAG / 2
+        const y1 = isYes ? fr.cy           : fr.bottom
+        // Incoming to target: connect to top if diamond, left-center otherwise
+        const x2 = toDiamond ? (tr.left + tr.right) / 2 : tr.left
+        const y2 = toDiamond ? tr.top                    : tr.cy
         const midX = (x1 + x2) / 2
 
         arrs.push({ x1, y1, x2, y2, midX, color: col_color,
           id: `dec_${lastL3.seq}_${oi}`,
           label: isYes ? 'YES' : 'NO',
-          fromBottom: !isYes })
+          fromBottom: !isYes,
+          arrowDir: toDiamond ? 'down' : 'right' })
         anyDrawn = true
       })
 
       if (anyDrawn) decisionCols.add(ci)
     })
 
-    // ── Pass 2: regular column-to-column flow arrows ──────────────────────────
+    // ── Pass 2: regular column-to-column flow arrows ─────────────────────────
     columns.forEach((col, ci) => {
       if (col.type === 'L1') return
-      if (decisionCols.has(ci)) return   // decision arrows already cover this
+      if (decisionCols.has(ci)) return
 
       const nextCol = columns[ci + 1]
       if (!nextCol || nextCol.type === 'L1') return
@@ -584,11 +563,18 @@ export default function ProcessMap({ processes }) {
 
       const fr = toC(fromEl.getBoundingClientRect())
       const tr = toC(toEl.getBoundingClientRect())
-      const x1 = fr.right, y1 = fr.cy
-      const x2 = tr.left,  y2 = tr.cy
 
-      arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: procColor(col.proc),
-        id: `${col.id}_to_${ci+1}` })
+      // If target is a decision diamond, connect to its TOP point
+      const toDiamond = toEl.dataset?.diamond === 'true'
+      const x1   = fr.right
+      const y1   = fr.cy
+      const x2   = toDiamond ? (tr.left + tr.right) / 2 : tr.left
+      const y2   = toDiamond ? tr.top                    : tr.cy
+
+      arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2,
+        color: procColor(col.proc),
+        id: `${col.id}_to_${ci+1}`,
+        arrowDir: toDiamond ? 'down' : 'right' })
     })
 
     const grid = gridRef.current
@@ -607,7 +593,7 @@ export default function ProcessMap({ processes }) {
     <div ref={scrollRef}
       style={{ height:'100%', overflow:'auto', background:'#f1f5f9', position:'relative' }}>
 
-      {/* ── Grid ──────────────────────────────────────────────────────────── */}
+      {/* ── Grid ──────────────────────────────────────────────────────────────── */}
       <div ref={gridRef}
         style={{ display:'grid', gridTemplateColumns:gtc, alignItems:'start' }}>
 
@@ -703,7 +689,6 @@ export default function ProcessMap({ processes }) {
                       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start'}}>
                         {items.map((item, ii) => {
                           const isDecision = item.node.step_type?.toLowerCase() === 'decision'
-                            || item.node.step_type?.toLowerCase() === 'decision (automated)'
                           const BoxComp = isDecision ? DiamondBox : NodeBox
                           const cellKey = `${ci}_${role}`
                           const isFirstBox = ii === 0
@@ -753,7 +738,7 @@ export default function ProcessMap({ processes }) {
         })}
       </div>
 
-      {/* ── SVG cross-swimlane arrow overlay ──────────────────────────────── */}
+      {/* ── SVG arrow overlay ─────────────────────────────────────────────────── */}
       <svg
         style={{
           position:'absolute', top:0, left:0,
@@ -761,36 +746,31 @@ export default function ProcessMap({ processes }) {
           pointerEvents:'none', overflow:'visible', zIndex:20,
         }}
         width={svgSize.w} height={svgSize.h}>
-        <defs>
-          {/* Small, clean arrowhead */}
-          <marker id="swHead" markerWidth="7" markerHeight="7"
-            refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0.5 L6,3.5 L0,6.5" fill="none"
-              stroke="#475569" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </marker>
-          <marker id="swHeadColor" markerWidth="7" markerHeight="7"
-            refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0.5 L6,3.5 L0,6.5" fill="none"
-              stroke="inherit" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </marker>
-        </defs>
         {svgArrows.map(a => {
           const arrowColor = mixWhite(a.color, 0.15)
           const AH = 5
-          let d, labelX, labelY
+          let d
+
           if (a.fromBottom) {
-            // NO path: bottom exit → step down 20px → right to midX → to target y → arrive
+            // NO exit: down from diamond bottom → step 20px → elbow to target
             const stepY = a.y1 + 20
             d = `M${a.x1},${a.y1} L${a.x1},${stepY} L${a.midX},${stepY} L${a.midX},${a.y2} L${a.x2},${a.y2}`
-            labelX = a.midX
-            labelY = stepY - 4
           } else {
-            // YES / regular path: right exit → midX → drop/rise → arrive
+            // YES / regular: right from source → midX → adjust y → arrive at target
             d = `M${a.x1},${a.y1} L${a.midX},${a.y1} L${a.midX},${a.y2} L${a.x2},${a.y2}`
-            labelX = a.midX
-            labelY = Math.min(a.y1, a.y2) - 4
           }
-          const ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
+
+          // Arrowhead: points right by default, points down when entering diamond top
+          let ah
+          if (a.arrowDir === 'down') {
+            ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2+AH},${a.y2-AH}`
+          } else {
+            ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
+          }
+
+          const labelX = a.fromBottom ? a.midX : a.midX
+          const labelY = a.fromBottom ? (a.y1 + 20) - 4 : Math.min(a.y1, a.y2) - 4
+
           return (
             <g key={a.id}>
               <path d={d} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="3.5"

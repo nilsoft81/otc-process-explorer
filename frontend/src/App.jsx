@@ -10,7 +10,7 @@ const API = 'https://otc-process-explorer.onrender.com'
 const RACI_LEGEND = [
   { short: 'R', label: 'Responsible', dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-600/40', bg: 'bg-emerald-900/30' },
   { short: 'A', label: 'Accountable', dot: 'bg-slate-400',   text: 'text-slate-300',   ring: 'ring-slate-600/40',   bg: 'bg-slate-800/60'   },
-  { short: 'C', label: 'Consulted',   dot: 'bg-slate-500',   text: 'text-slate-400',   ring: 'ring-slate-600/40',   bg: 'bg-slate-800/40'   },
+  { short: 'I', label: 'Informed',    dot: 'bg-slate-500',   text: 'text-slate-400',   ring: 'ring-slate-600/40',   bg: 'bg-slate-800/40'   },
 ]
 
 export default function App() {
@@ -173,18 +173,6 @@ export default function App() {
             {/* Indicators legend */}
             <div className="flex items-center gap-2 flex-wrap pl-2 border-l border-slate-700">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
-                bg-amber-900/30 ring-amber-600/40">
-                <span className="text-amber-400 font-bold">📎</span>
-                <span className="text-amber-300 font-bold">Artefact</span>
-                <span className="text-slate-400">Critical document</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
-                bg-blue-900/30 ring-blue-600/40">
-                <span className="text-blue-400 font-bold">⏱</span>
-                <span className="text-blue-300 font-bold">SLA</span>
-                <span className="text-slate-400">Service level target</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
                 bg-violet-900/30 ring-violet-600/40">
                 <span className="text-violet-300 font-bold">🤖</span>
                 <span className="text-violet-300 font-bold">AI Agent</span>
@@ -198,11 +186,6 @@ export default function App() {
                 </svg>
                 <span className="text-slate-300 font-bold">Decision</span>
                 <span className="text-slate-400">Gateway with Yes/No paths</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
-                bg-slate-800/40 ring-slate-600/40">
-                <span className="text-violet-400 font-bold">Δ</span>
-                <span className="text-slate-400">To-Be change</span>
               </span>
             </div>
           </div>
