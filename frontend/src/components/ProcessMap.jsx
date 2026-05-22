@@ -161,49 +161,12 @@ const DIAG  = 164
 const SIDE  = Math.round(DIAG / Math.SQRT2)
 const INSET = Math.round((DIAG - SIDE) / 2)
 
-function outcomeShort(txt) {
-  const w = txt.split(/[\s–—-]/)[0]
-  const M = { Yes:'YES', No:'NO', Approved:'OK', Rejected:'BACK',
-              Aligned:'OK', Discrepancy:'REWORK', Query:'QUERY',
-              Dispute:'DISPUTE', Chase:'CHASE' }
-  return M[w] || w.slice(0, 7).toUpperCase()
-}
-
 function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   const fill  = bg(baseColor, level)
   const dark  = darkBg(baseColor, level)
   const textC = tc(level)
   const mutedC= mc(level)
   const isAI  = node.raci?.r?.toUpperCase().includes('AI')
-
-  const outcomes = node.decision_outcomes
-    ? node.decision_outcomes.split('|').map(o => o.trim()).slice(0, 3)
-    : []
-
-  const outColor = () => dark
-  const STUB = 24
-  const HD   = 5
-
-  const exits = [
-    { // → right (YES)
-      lx1: DIAG,      ly1: DIAG/2,
-      lx2: DIAG+STUB, ly2: DIAG/2,
-      hd: `M${DIAG+STUB-HD},${DIAG/2-HD} L${DIAG+STUB+HD},${DIAG/2} L${DIAG+STUB-HD},${DIAG/2+HD}`,
-      tx: DIAG+STUB+HD+3, ty: DIAG/2+3, ta: 'start',
-    },
-    { // ↓ bottom (NO)
-      lx1: DIAG/2,    ly1: DIAG,
-      lx2: DIAG/2,    ly2: DIAG+STUB,
-      hd: `M${DIAG/2-HD},${DIAG+STUB-HD} L${DIAG/2},${DIAG+STUB+HD} L${DIAG/2+HD},${DIAG+STUB-HD}`,
-      tx: DIAG/2, ty: DIAG+STUB+HD+10, ta: 'middle',
-    },
-    { // ← left (third outcome)
-      lx1: 0,     ly1: DIAG/2,
-      lx2: -STUB, ly2: DIAG/2,
-      hd: `M${-STUB+HD},${DIAG/2-HD} L${-STUB-HD},${DIAG/2} L${-STUB+HD},${DIAG/2+HD}`,
-      tx: -STUB-HD-3, ty: DIAG/2+3, ta: 'end',
-    },
-  ]
 
   return (
     <div
@@ -251,36 +214,15 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
         )}
       </div>
 
-      {/* Decision exit stubs */}
-      {outcomes.length > 0 && (
-        <svg style={{position:'absolute',top:0,left:0,overflow:'visible',pointerEvents:'none',zIndex:6}}
-             width={DIAG} height={DIAG}>
-          {outcomes.map((out, i) => {
-            if (i >= exits.length) return null
-            const e = exits[i]
-            const col = outColor(out)
-            const lbl = outcomeShort(out)
-            return (
-              <g key={i}>
-                <line x1={e.lx1} y1={e.ly1} x2={e.lx2} y2={e.ly2}
-                  stroke={col} strokeWidth="1.5" strokeLinecap="round"/>
-                <path d={e.hd} fill={col}/>
-                <text x={e.tx} y={e.ty} fontSize="8" fill={col}
-                  textAnchor={e.ta} fontWeight="700"
-                  style={{fontFamily:'system-ui,sans-serif'}}>{lbl}</text>
-              </g>
-            )
-          })}
-        </svg>
-      )}
     </div>
   )
 }
 
 // ── Down-arrow connector ───────────────────────────────────────────────────────
-function DownArrow({ color }) {
+function DownArrow({ color, centerX }) {
+  const pl = centerX !== undefined ? Math.max(0, centerX - 5) : 20
   return (
-    <div style={{display:'flex',alignItems:'center',paddingLeft:20,margin:'3px 0'}}>
+    <div style={{display:'flex',alignItems:'center',paddingLeft:pl,margin:'3px 0'}}>
       <svg width="10" height="18" viewBox="0 0 10 18" fill="none">
         <line x1="5" y1="0" x2="5" y2="11" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
         <path d="M1 8l4 10 4-10" fill={color}/>
@@ -501,8 +443,8 @@ export default function ProcessMap({ processes }) {
       if (!steps.length) return
       const col_color = procColor(col.proc)
 
-      // Draw cross-cell arrows from a decision node (L3 or L4)
-      function drawDecisionArrows(decNode, isL4) {
+      // Draw arrows from a decision node (L3 or L4), using position to pick exit side
+      function drawDecisionArrows(decNode) {
         const fromEl = seqBoxRefs.current[decNode.seq]
         if (!fromEl) return false
         const fr = toC(fromEl.getBoundingClientRect())
@@ -513,31 +455,25 @@ export default function ProcessMap({ processes }) {
           if (!m) return
           const targetSeq = m[1].trim()
 
-          // L4 decisions: skip if target shares the same L3 parent (DownArrow handles those)
-          if (isL4) {
-            const dp = decNode.seq.split('.')
-            const tp = targetSeq.split('.')
-            if (dp.length === 4 && tp.length === 4
-                && dp[0] === tp[0] && dp[1] === tp[1] && dp[2] === tp[2]) return
-          }
-
           const toEl = seqBoxRefs.current[targetSeq]
           if (!toEl) return
           const tr = toC(toEl.getBoundingClientRect())
-          const isYes = oi === 0
           const toDiamond = toEl.dataset?.diamond === 'true'
 
-          const x1 = isYes ? fr.right           : fr.left + DIAG / 2
-          const y1 = isYes ? fr.cy              : fr.bottom
+          // Position-based exit: target significantly below → BOTTOM; else RIGHT
+          const dY = tr.cy - fr.cy
+          const fromBottom = dY > 50
+          const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
+          const y1 = fromBottom ? fr.bottom           : fr.cy
           const x2 = toDiamond ? (tr.left + tr.right) / 2 : tr.left
           const y2 = toDiamond ? tr.top                    : tr.cy
           const midX = (x1 + x2) / 2
 
           arrs.push({ x1, y1, x2, y2, midX, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
-            label: isYes ? 'YES' : 'NO',
-            fromBottom: !isYes,
-            arrowDir: toDiamond ? 'down' : 'right' })
+            label: oi === 0 ? 'YES' : 'NO',
+            fromBottom,
+            arrowDir: toDiamond ? 'down' : (fromBottom && x2 < x1 ? 'left' : 'right') })
           anyDrawn = true
         })
         return anyDrawn
@@ -547,15 +483,15 @@ export default function ProcessMap({ processes }) {
       const lastL3 = steps[steps.length - 1]
       if (lastL3.step_type === 'Decision' && lastL3.decision_outcomes
           && !(expL3.has(lastL3.seq) && lastL3.children?.length)) {
-        if (drawDecisionArrows(lastL3, false)) decisionCols.add(ci)
+        if (drawDecisionArrows(lastL3)) decisionCols.add(ci)
       }
 
-      // L4 decisions: inside expanded L3 steps — draw cross-cell arrows only
+      // L4 decisions: inside expanded L3 steps
       steps.forEach(step => {
         if (!expL3.has(step.seq) || !step.children) return
         step.children.forEach(child => {
           if (child.step_type === 'Decision' && child.decision_outcomes) {
-            drawDecisionArrows(child, true)
+            drawDecisionArrows(child)
           }
         })
       })
@@ -712,13 +648,14 @@ export default function ProcessMap({ processes }) {
                       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start'}}>
                         {items.map((item, ii) => {
                           const isDecision = item.node.step_type?.toLowerCase() === 'decision'
+                          const prevIsDecision = ii > 0 && items[ii-1]?.node.step_type?.toLowerCase() === 'decision'
                           const BoxComp = isDecision ? DiamondBox : NodeBox
                           const cellKey = `${ci}_${role}`
                           const isFirstBox = ii === 0
                           const isLastBox  = ii === items.length - 1
                           return (
                             <React.Fragment key={`${item.node.seq??item.node.id}_${ii}`}>
-                              {ii > 0 && <DownArrow color={mixWhite(item.base, 0.22)}/>}
+                              {ii > 0 && !prevIsDecision && <DownArrow color={mixWhite(item.base, 0.22)} centerX={isDecision ? DIAG/2 : undefined}/>}
                               <BoxComp
                                 node={item.node}
                                 baseColor={item.base}
@@ -783,10 +720,12 @@ export default function ProcessMap({ processes }) {
             d = `M${a.x1},${a.y1} L${a.midX},${a.y1} L${a.midX},${a.y2} L${a.x2},${a.y2}`
           }
 
-          // Arrowhead: points right by default, points down when entering diamond top
+          // Arrowhead direction
           let ah
           if (a.arrowDir === 'down') {
             ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2+AH},${a.y2-AH}`
+          } else if (a.arrowDir === 'left') {
+            ah = `M${a.x2+AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2+AH},${a.y2+AH}`
           } else {
             ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
           }
