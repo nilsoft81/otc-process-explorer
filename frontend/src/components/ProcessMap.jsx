@@ -450,6 +450,12 @@ export default function ProcessMap({ processes }) {
         const fr = toC(fromEl.getBoundingClientRect())
         let anyDrawn = false
 
+        // Source cell top — used to route above-row arches
+        const srcCellEl = cellRefs.current[`${ci}_${col.seg.role}`]
+        const srcCellTop = srcCellEl
+          ? toC(srcCellEl.getBoundingClientRect()).top
+          : fr.top
+
         decNode.decision_outcomes.split('|').map(o => o.trim()).forEach((out, oi) => {
           const m = out.match(/proceed to\s+(.+)/i)
           if (!m) return
@@ -465,15 +471,24 @@ export default function ProcessMap({ processes }) {
           const fromBottom = dY > 50
           const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           const y1 = fromBottom ? fr.bottom           : fr.cy
-          const x2 = toDiamond ? (tr.left + tr.right) / 2 : tr.left
-          const y2 = toDiamond ? tr.top                    : tr.cy
-          const midX = (x1 + x2) / 2
 
-          arrs.push({ x1, y1, x2, y2, midX, color: col_color,
+          // Long-distance right-exit arrows arch ABOVE the row to avoid crossing boxes
+          const rawX2 = toDiamond ? (tr.left + tr.right) / 2 : tr.left
+          const rawY2 = toDiamond ? tr.top                    : tr.cy
+          const isArch = !fromBottom && (rawX2 - x1) > 180
+
+          // For arch arrivals at a NodeBox: land at its top-center (cleaner visually)
+          const x2 = (isArch && !toDiamond) ? (tr.left + tr.right) / 2 : rawX2
+          const y2 = (isArch && !toDiamond) ? tr.top                    : rawY2
+
+          // Route above source cell; give 12px clearance from the cell's top edge
+          const aboveY = isArch ? srcCellTop - 12 : undefined
+
+          arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
-            fromBottom,
-            arrowDir: toDiamond ? 'down' : (fromBottom && x2 < x1 ? 'left' : 'right') })
+            fromBottom, arch: isArch, aboveY,
+            arrowDir: toDiamond ? 'down' : (fromBottom && x2 < x1 ? 'left' : (isArch ? 'down' : 'right')) })
           anyDrawn = true
         })
         return anyDrawn
@@ -709,15 +724,30 @@ export default function ProcessMap({ processes }) {
         {svgArrows.map(a => {
           const arrowColor = mixWhite(a.color, 0.15)
           const AH = 5
-          let d
+          let d, labelX, labelY
 
-          if (a.fromBottom) {
-            // NO exit: down from diamond bottom → step 20px → elbow to target
+          if (a.arch) {
+            // Long-distance decision arrow: arch above the row to avoid crossing boxes
+            const ay = a.aboveY ?? Math.min(a.y1, a.y2) - 12
+            d = `M${a.x1},${a.y1} L${a.x1},${ay} L${a.x2},${ay} L${a.x2},${a.y2}`
+            labelX = (a.x1 + a.x2) / 2
+            labelY = ay - 4
+          } else if (a.fromBottom) {
+            // Bottom-exit: step down, elbow across, arrive at target
             const stepY = a.y1 + 20
-            d = `M${a.x1},${a.y1} L${a.x1},${stepY} L${a.midX},${stepY} L${a.midX},${a.y2} L${a.x2},${a.y2}`
+            if (Math.abs(a.x2 - a.x1) < 60) {
+              // Near-vertical same-cell: gentle jog then straight down
+              d = `M${a.x1},${a.y1} L${a.x1},${stepY} L${a.x2},${stepY} L${a.x2},${a.y2}`
+            } else {
+              d = `M${a.x1},${a.y1} L${a.x1},${stepY} L${a.midX},${stepY} L${a.midX},${a.y2} L${a.x2},${a.y2}`
+            }
+            labelX = a.fromBottom ? a.x1 : a.midX
+            labelY = stepY - 4
           } else {
-            // YES / regular: right from source → midX → adjust y → arrive at target
+            // Regular / short-distance: L-shape through midpoint gap between columns
             d = `M${a.x1},${a.y1} L${a.midX},${a.y1} L${a.midX},${a.y2} L${a.x2},${a.y2}`
+            labelX = a.midX
+            labelY = Math.min(a.y1, a.y2) - 4
           }
 
           // Arrowhead direction
@@ -729,9 +759,6 @@ export default function ProcessMap({ processes }) {
           } else {
             ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
           }
-
-          const labelX = a.fromBottom ? a.midX : a.midX
-          const labelY = a.fromBottom ? (a.y1 + 20) - 4 : Math.min(a.y1, a.y2) - 4
 
           return (
             <g key={a.id}>
