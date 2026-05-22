@@ -499,43 +499,66 @@ export default function ProcessMap({ processes }) {
       if (col.type !== 'SEG') return
       const steps = col.seg.steps
       if (!steps.length) return
-      const lastL3 = steps[steps.length - 1]
-      if (lastL3.step_type !== 'Decision' || !lastL3.decision_outcomes) return
-      if (expL3.has(lastL3.seq) && lastL3.children?.length) return
-
-      const fromEl = seqBoxRefs.current[lastL3.seq]
-      if (!fromEl) return
-      const fr = toC(fromEl.getBoundingClientRect())
       const col_color = procColor(col.proc)
-      let anyDrawn = false
 
-      lastL3.decision_outcomes.split('|').map(o => o.trim()).forEach((out, oi) => {
-        const m = out.match(/proceed to\s+(.+)/i)
-        if (!m) return
-        const targetSeq = m[1].trim()
-        const toEl = seqBoxRefs.current[targetSeq]
-        if (!toEl) return
+      // Draw cross-cell arrows from a decision node (L3 or L4)
+      function drawDecisionArrows(decNode, isL4) {
+        const fromEl = seqBoxRefs.current[decNode.seq]
+        if (!fromEl) return false
+        const fr = toC(fromEl.getBoundingClientRect())
+        let anyDrawn = false
 
-        const tr = toC(toEl.getBoundingClientRect())
-        const isYes = oi === 0
-        const toDiamond = toEl.dataset?.diamond === 'true'
+        decNode.decision_outcomes.split('|').map(o => o.trim()).forEach((out, oi) => {
+          const m = out.match(/proceed to\s+(.+)/i)
+          if (!m) return
+          const targetSeq = m[1].trim()
 
-        const x1 = isYes ? fr.right        : fr.left + DIAG / 2
-        const y1 = isYes ? fr.cy           : fr.bottom
-        // Incoming to target: connect to top if diamond, left-center otherwise
-        const x2 = toDiamond ? (tr.left + tr.right) / 2 : tr.left
-        const y2 = toDiamond ? tr.top                    : tr.cy
-        const midX = (x1 + x2) / 2
+          // L4 decisions: skip if target shares the same L3 parent (DownArrow handles those)
+          if (isL4) {
+            const dp = decNode.seq.split('.')
+            const tp = targetSeq.split('.')
+            if (dp.length === 4 && tp.length === 4
+                && dp[0] === tp[0] && dp[1] === tp[1] && dp[2] === tp[2]) return
+          }
 
-        arrs.push({ x1, y1, x2, y2, midX, color: col_color,
-          id: `dec_${lastL3.seq}_${oi}`,
-          label: isYes ? 'YES' : 'NO',
-          fromBottom: !isYes,
-          arrowDir: toDiamond ? 'down' : 'right' })
-        anyDrawn = true
+          const toEl = seqBoxRefs.current[targetSeq]
+          if (!toEl) return
+          const tr = toC(toEl.getBoundingClientRect())
+          const isYes = oi === 0
+          const toDiamond = toEl.dataset?.diamond === 'true'
+
+          const x1 = isYes ? fr.right           : fr.left + DIAG / 2
+          const y1 = isYes ? fr.cy              : fr.bottom
+          const x2 = toDiamond ? (tr.left + tr.right) / 2 : tr.left
+          const y2 = toDiamond ? tr.top                    : tr.cy
+          const midX = (x1 + x2) / 2
+
+          arrs.push({ x1, y1, x2, y2, midX, color: col_color,
+            id: `dec_${decNode.seq}_${oi}`,
+            label: isYes ? 'YES' : 'NO',
+            fromBottom: !isYes,
+            arrowDir: toDiamond ? 'down' : 'right' })
+          anyDrawn = true
+        })
+        return anyDrawn
+      }
+
+      // L3 decisions: last step in SEG, only when NOT expanded to show L4 children
+      const lastL3 = steps[steps.length - 1]
+      if (lastL3.step_type === 'Decision' && lastL3.decision_outcomes
+          && !(expL3.has(lastL3.seq) && lastL3.children?.length)) {
+        if (drawDecisionArrows(lastL3, false)) decisionCols.add(ci)
+      }
+
+      // L4 decisions: inside expanded L3 steps — draw cross-cell arrows only
+      steps.forEach(step => {
+        if (!expL3.has(step.seq) || !step.children) return
+        step.children.forEach(child => {
+          if (child.step_type === 'Decision' && child.decision_outcomes) {
+            drawDecisionArrows(child, true)
+          }
+        })
       })
-
-      if (anyDrawn) decisionCols.add(ci)
     })
 
     // ── Pass 2: regular column-to-column flow arrows ─────────────────────────
