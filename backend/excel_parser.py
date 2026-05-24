@@ -1,22 +1,22 @@
-"""Validate and parse Process Design Excel (v8 format) into ALL_PROCESSES list.
+"""Validate and parse Process Design Excel into ALL_PROCESSES list.
 
-v8 layout:
+Layout (Detailed Process Flows format):
   Row 5 (idx 4): main headers
   Row 6 (idx 5): sub-headers
   Row 7+ (idx 6+): data
 
 Required columns (0-based index):
-  B=1  AI Agent?
-  C=2  System / Tool
-  D=3  Level (L1-L4)
-  E=4  Step Number / Seq
-  F=5  Step Name
-  G=6  Step Description
-  H=7  Step Type (includes decision routing)
-  I=8  Automated?
-  R=17 RACI – Responsible (R)
-  S=18 RACI – Accountable (A)
-  T=19 RACI – Contributing / Informed (I)
+  A=0  AI Agent?
+  B=1  System / Tool
+  C=2  Level (L1-L4)
+  D=3  Step Number / Seq
+  E=4  Step Name
+  F=5  Step Description
+  G=6  Step Type (includes decision routing)
+  H=7  Automated?
+  Q=16 RACI – Responsible (R)
+  R=17 RACI – Accountable (A)
+  S=18 RACI – Contributing / Informed (I)
 """
 import io
 import re
@@ -26,22 +26,22 @@ REQUIRED_SHEET = 'Process Design'
 HEADER_ROW_IDX = 4   # row 5 in Excel (0-indexed) — main headers
 DATA_START_IDX = 6   # row 7 in Excel — skip main header + sub-header row
 
-C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 1, 2, 3, 4, 5
-C_DESC, C_TYPE, C_AUTO = 6, 7, 8
-C_R, C_A, C_I = 17, 18, 19
+C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 0, 1, 2, 3, 4
+C_DESC, C_TYPE, C_AUTO = 5, 6, 7
+C_R, C_A, C_I = 16, 17, 18
 
 REQUIRED_COLUMNS = {
-    C_AI:   ("B",  "AI Agent"),
-    C_SYS:  ("C",  "System / Tool"),
-    C_LVL:  ("D",  "Level"),
-    C_SEQ:  ("E",  "Step Number / Seq"),
-    C_NAME: ("F",  "Step Name"),
-    C_DESC: ("G",  "Step Description"),
-    C_TYPE: ("H",  "Step Type"),
-    C_AUTO: ("I",  "Automated"),
-    C_R:    ("R",  "RACI – Responsible"),
-    C_A:    ("S",  "RACI – Accountable"),
-    C_I:    ("T",  "RACI – Contributing / Informed"),
+    C_AI:   ("A",  "AI Agent"),
+    C_SYS:  ("B",  "System / Tool"),
+    C_LVL:  ("C",  "Level"),
+    C_SEQ:  ("D",  "Step Number / Seq"),
+    C_NAME: ("E",  "Step Name"),
+    C_DESC: ("F",  "Step Description"),
+    C_TYPE: ("G",  "Step Type"),
+    C_AUTO: ("H",  "Automated"),
+    C_R:    ("Q",  "RACI – Responsible"),
+    C_A:    ("R",  "RACI – Accountable"),
+    C_I:    ("S",  "RACI – Contributing / Informed"),
 }
 
 L1_COLORS = {
@@ -229,15 +229,15 @@ def parse_excel(file_content: bytes) -> list:
 
 
 COLUMNS_META = [
-    {"col": "B",  "index": C_AI,   "name": "AI Agent",                      "description": "Flag for AI Agent steps (e.g. Y / Yes)"},
-    {"col": "C",  "index": C_SYS,  "name": "System / Tool",                 "description": "System or tool used in the step"},
-    {"col": "D",  "index": C_LVL,  "name": "Level",                         "description": "Process level (L1, L2, L3, L4)"},
-    {"col": "E",  "index": C_SEQ,  "name": "Step Number / Seq",              "description": "Sequence number (e.g. 1, 1.1, 1.1.1, 1.1.1.1)"},
-    {"col": "F",  "index": C_NAME, "name": "Step Name",                      "description": "Name of the process step"},
-    {"col": "G",  "index": C_DESC, "name": "Step Description",               "description": "Detailed description of the step"},
-    {"col": "H",  "index": C_TYPE, "name": "Step Type",                      "description": "Process, Decision, Start, or Automated — Decisions include If yes/no routing"},
-    {"col": "I",  "index": C_AUTO, "name": "Automated",                      "description": "Whether the step is fully automated (Y/N/Partial)"},
-    {"col": "R",  "index": C_R,    "name": "RACI – Responsible (R)",         "description": "Who is responsible for executing the step"},
-    {"col": "S",  "index": C_A,    "name": "RACI – Accountable (A)",         "description": "Who is ultimately accountable"},
-    {"col": "T",  "index": C_I,    "name": "RACI – Contributing / Informed (I)", "description": "Who is informed or contributes"},
+    {"col": "A",  "index": C_AI,   "name": "AI Agent",                      "description": "Flag for AI Agent steps (e.g. X / Y / Yes)"},
+    {"col": "B",  "index": C_SYS,  "name": "System / Tool",                 "description": "System or tool used in the step"},
+    {"col": "C",  "index": C_LVL,  "name": "Level",                         "description": "Process level (L1, L2, L3, L4)"},
+    {"col": "D",  "index": C_SEQ,  "name": "Step Number / Seq",              "description": "Sequence number (e.g. 1, 1.1, 1.1.1, 1.1.1.1)"},
+    {"col": "E",  "index": C_NAME, "name": "Step Name",                      "description": "Name of the process step"},
+    {"col": "F",  "index": C_DESC, "name": "Step Description",               "description": "Detailed description of the step"},
+    {"col": "G",  "index": C_TYPE, "name": "Step Type",                      "description": "Process, Decision, Start, or Automated — Decisions include If yes/no routing"},
+    {"col": "H",  "index": C_AUTO, "name": "Automated",                      "description": "Whether the step is fully automated (Y/N/Partial)"},
+    {"col": "Q",  "index": C_R,    "name": "RACI – Responsible (R)",         "description": "Who is responsible for executing the step"},
+    {"col": "R",  "index": C_A,    "name": "RACI – Accountable (A)",         "description": "Who is ultimately accountable"},
+    {"col": "S",  "index": C_I,    "name": "RACI – Contributing / Informed (I)", "description": "Who is informed or contributes"},
 ]

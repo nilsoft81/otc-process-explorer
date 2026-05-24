@@ -1,32 +1,32 @@
-"""Generate data/processes.py from Process_Flow_Template_v2 8.xlsx (Process Design tab).
+"""Generate data/processes.py from Detailed Process Flows_v1.xlsx (Process Design tab).
 
-v8 layout:
+Layout:
   Row 5 (idx 4): main headers
   Row 6 (idx 5): sub-headers
   Row 7+ (idx 6+): data
 
 Column indices (0-based):
-  B=1  AI Agent?
-  C=2  System / Tool
-  D=3  Level (L1-L4)
-  E=4  Step Number
-  F=5  Step Name
-  G=6  Step Description
-  H=7  Step Type
-  I=8  Automated?
-  R=17 RACI – Responsible (R)
-  S=18 RACI – Accountable (A)
-  T=19 RACI – Contributing / Informed (I)
+  A=0  AI Agent?
+  B=1  System / Tool
+  C=2  Level (L1-L4)
+  D=3  Step Number
+  E=4  Step Name
+  F=5  Step Description
+  G=6  Step Type
+  H=7  Automated?
+  Q=16 RACI – Responsible (R)
+  R=17 RACI – Accountable (A)
+  S=18 RACI – Contributing / Informed (I)
 """
 import openpyxl, re, os
 
-wb = openpyxl.load_workbook('Process_Flow_Template_v2 8.xlsx', data_only=True)
+wb = openpyxl.load_workbook('Detailed Process Flows_v1.xlsx', data_only=True)
 ws = wb['Process Design']
 all_rows = list(ws.iter_rows(values_only=True))
 
-C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 1, 2, 3, 4, 5
-C_DESC, C_TYPE, C_AUTO = 6, 7, 8
-C_R, C_A, C_I = 17, 18, 19
+C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 0, 1, 2, 3, 4
+C_DESC, C_TYPE, C_AUTO = 5, 6, 7
+C_R, C_A, C_I = 16, 17, 18
 
 DATA_START = 6  # row 7 (0-indexed)
 
