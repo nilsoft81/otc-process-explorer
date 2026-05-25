@@ -443,18 +443,21 @@ export default function ProcessMap({ processes }) {
       if (!steps.length) return
       const col_color = procColor(col.proc)
 
-      // Draw arrows from a decision node (L3 or L4), using position to pick exit side
+      // Draw arrows from a decision node (L3 or L4)
+      //   YES (oi=0): target below → exit BOTTOM → arrive top-center (straight down)
+      //   NO  (oi=1): target right → exit RIGHT → route via column right edge → no box crossing
+      //   Long-distance right-exit: arch ABOVE the row
       function drawDecisionArrows(decNode) {
         const fromEl = seqBoxRefs.current[decNode.seq]
         if (!fromEl) return false
         const fr = toC(fromEl.getBoundingClientRect())
         let anyDrawn = false
 
-        // Source cell top — used to route above-row arches
+        // Source cell geometry for routing lanes
         const srcCellEl = cellRefs.current[`${ci}_${col.seg.role}`]
-        const srcCellTop = srcCellEl
-          ? toC(srcCellEl.getBoundingClientRect()).top
-          : fr.top
+        const srcCellRect = srcCellEl ? toC(srcCellEl.getBoundingClientRect()) : null
+        const srcCellTop   = srcCellRect ? srcCellRect.top   : fr.top
+        const srcCellRight = srcCellRect ? srcCellRect.right : fr.right + 20
 
         decNode.decision_outcomes.split('|').map(o => o.trim()).forEach((out, oi) => {
           const m = out.match(/proceed to\s+(.+)/i)
@@ -466,29 +469,28 @@ export default function ProcessMap({ processes }) {
           const tr = toC(toEl.getBoundingClientRect())
           const toDiamond = toEl.dataset?.diamond === 'true'
 
-          // Position-based exit: target significantly below → BOTTOM; else RIGHT
+          // Position-based exit direction
           const dY = tr.cy - fr.cy
-          const fromBottom = dY > 50
+          const fromBottom = dY > 50   // target is below → exit BOTTOM
           const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           const y1 = fromBottom ? fr.bottom           : fr.cy
 
-          // Long-distance right-exit arrows arch ABOVE the row to avoid crossing boxes
-          const rawX2 = toDiamond ? (tr.left + tr.right) / 2 : tr.left
-          const rawY2 = toDiamond ? tr.top                    : tr.cy
-          const isArch = !fromBottom && (rawX2 - x1) > 180
+          // All arrivals land at top-center of target (arrowDir='down')
+          const x2 = (tr.left + tr.right) / 2
+          const y2 = toDiamond ? tr.top : tr.top
 
-          // For arch arrivals at a NodeBox: land at its top-center (cleaner visually)
-          const x2 = (isArch && !toDiamond) ? (tr.left + tr.right) / 2 : rawX2
-          const y2 = (isArch && !toDiamond) ? tr.top                    : rawY2
-
-          // Route above source cell; give 12px clearance from the cell's top edge
+          // Long right-exit: arch above row to skip all intermediate columns
+          const isArch = !fromBottom && ((tr.left + tr.right) / 2 - x1) > 180
           const aboveY = isArch ? srcCellTop - 12 : undefined
+
+          // Short right-exit: route via right edge of source column (avoids crossing boxes)
+          const routeX = (!fromBottom && !isArch) ? srcCellRight + 4 : undefined
 
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
-            fromBottom, arch: isArch, aboveY,
-            arrowDir: toDiamond ? 'down' : (fromBottom && x2 < x1 ? 'left' : (isArch ? 'down' : 'right')) })
+            fromBottom, arch: isArch, aboveY, routeX,
+            arrowDir: 'down' })
           anyDrawn = true
         })
         return anyDrawn
@@ -727,35 +729,39 @@ export default function ProcessMap({ processes }) {
           let d, labelX, labelY
 
           if (a.arch) {
-            // Long-distance decision arrow: arch above the row to avoid crossing boxes
+            // Long right-exit: arch above the row, clear of all intermediate boxes
             const ay = a.aboveY ?? Math.min(a.y1, a.y2) - 12
             d = `M${a.x1},${a.y1} L${a.x1},${ay} L${a.x2},${ay} L${a.x2},${a.y2}`
             labelX = (a.x1 + a.x2) / 2
             labelY = ay - 4
           } else if (a.fromBottom) {
-            // Bottom-exit: step down, elbow across, arrive at target
-            const stepY = a.y1 + 20
-            if (Math.abs(a.x2 - a.x1) < 60) {
-              // Near-vertical same-cell: gentle jog then straight down
-              d = `M${a.x1},${a.y1} L${a.x1},${stepY} L${a.x2},${stepY} L${a.x2},${a.y2}`
+            // YES: exit bottom → arrive top-center of target (nearly straight down)
+            const dx = Math.abs(a.x2 - a.x1)
+            if (dx < 15) {
+              d = `M${a.x1},${a.y1} L${a.x2},${a.y2}`
             } else {
-              d = `M${a.x1},${a.y1} L${a.x1},${stepY} L${a.midX},${stepY} L${a.midX},${a.y2} L${a.x2},${a.y2}`
+              const midY = (a.y1 + a.y2) / 2
+              d = `M${a.x1},${a.y1} L${a.x1},${midY} L${a.x2},${midY} L${a.x2},${a.y2}`
             }
-            labelX = a.fromBottom ? a.x1 : a.midX
-            labelY = stepY - 4
+            labelX = (a.x1 + a.x2) / 2
+            labelY = a.y1 + 16
+          } else if (a.routeX != null) {
+            // NO: exit right → column right edge → straight down → arrive at target
+            // Avoids all boxes: vertical is in the column-gap, horizontal is at target level
+            d = `M${a.x1},${a.y1} L${a.routeX},${a.y1} L${a.routeX},${a.y2} L${a.x2},${a.y2}`
+            labelX = (a.x1 + a.routeX) / 2
+            labelY = a.y1 - 6
           } else {
-            // Regular / short-distance: L-shape through midpoint gap between columns
+            // Regular flow arrow: L-shape through midpoint gap between columns
             d = `M${a.x1},${a.y1} L${a.midX},${a.y1} L${a.midX},${a.y2} L${a.x2},${a.y2}`
             labelX = a.midX
             labelY = Math.min(a.y1, a.y2) - 4
           }
 
-          // Arrowhead direction
+          // Arrowhead: down when arriving vertically, right when arriving horizontally
           let ah
           if (a.arrowDir === 'down') {
             ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2+AH},${a.y2-AH}`
-          } else if (a.arrowDir === 'left') {
-            ah = `M${a.x2+AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2+AH},${a.y2+AH}`
           } else {
             ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
           }
