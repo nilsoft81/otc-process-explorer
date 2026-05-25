@@ -219,10 +219,11 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
 }
 
 // ── Down-arrow connector ───────────────────────────────────────────────────────
-function DownArrow({ color, centerX }) {
+function DownArrow({ color, centerX, large = false }) {
   const pl = centerX !== undefined ? Math.max(0, centerX - 5) : 20
+  const margin = large ? '14px 0' : '8px 0'
   return (
-    <div style={{display:'flex',alignItems:'center',paddingLeft:pl,margin:'3px 0'}}>
+    <div style={{display:'flex',alignItems:'center',paddingLeft:pl,margin}}>
       <svg width="10" height="18" viewBox="0 0 10 18" fill="none">
         <line x1="5" y1="0" x2="5" y2="11" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
         <path d="M1 8l4 10 4-10" fill={color}/>
@@ -672,7 +673,16 @@ export default function ProcessMap({ processes }) {
                           const isLastBox  = ii === items.length - 1
                           return (
                             <React.Fragment key={`${item.node.seq??item.node.id}_${ii}`}>
-                              {ii > 0 && !prevIsDecision && <DownArrow color={mixWhite(item.base, 0.22)} centerX={isDecision ? DIAG/2 : undefined}/>}
+                              {ii > 0 && !prevIsDecision && (
+                                <DownArrow
+                                  color={mixWhite(item.base, 0.22)}
+                                  centerX={isDecision ? DIAG/2 : undefined}
+                                  large={isDecision}
+                                />
+                              )}
+                              {ii > 0 && prevIsDecision && (
+                                <div style={{height: 20}} />
+                              )}
                               <BoxComp
                                 node={item.node}
                                 baseColor={item.base}
