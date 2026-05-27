@@ -470,9 +470,8 @@ export default function ProcessMap({ processes }) {
           const tr = toC(toEl.getBoundingClientRect())
           const toDiamond = toEl.dataset?.diamond === 'true'
 
-          // Position-based exit direction
-          const dY = tr.cy - fr.cy
-          const fromBottom = dY > 50   // target is below → exit BOTTOM
+          // Outcome-index exit direction: YES (oi=0) → bottom vertex, NO (oi=1) → right vertex
+          const fromBottom = oi === 0
           const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           const y1 = fromBottom ? fr.bottom           : fr.cy
 
