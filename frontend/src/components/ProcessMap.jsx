@@ -472,17 +472,22 @@ export default function ProcessMap({ processes }) {
 
         const srcCellBottom = srcCellRect ? srcCellRect.bottom : fr.bottom + 20
 
+        // checkBackward: target is left of diamond OR same column but above diamond
+        const checkBackward = (tr) =>
+          tr.left < fr.left - 5 ||
+          (Math.abs(tr.left - fr.left) < DIAG && tr.top < fr.top - 5)
+
         // bottomIdx: prefer the forward-going target (right of or same column as diamond).
         // For all-backward, prefer the least-backward (largest tr.left = closest to source).
         let bottomIdx = 0
         if (targets.length === 2) {
           const sameCol = Math.abs(targets[0].tr.left - targets[1].tr.left) < 5
           if (sameCol) {
-            // Same column: vertically closer to diamond = next step = bottom exit
-            bottomIdx = targets[0].tr.top <= targets[1].tr.top ? 0 : 1
+            // Same column: the one below the diamond = next step = bottom exit
+            bottomIdx = targets[0].tr.top >= fr.top ? 0 : 1
           } else {
-            const t0Fwd = targets[0].tr.left >= fr.left
-            const t1Fwd = targets[1].tr.left >= fr.left
+            const t0Fwd = !checkBackward(targets[0].tr)
+            const t1Fwd = !checkBackward(targets[1].tr)
             if      ( t0Fwd && !t1Fwd) bottomIdx = 0
             else if (!t0Fwd &&  t1Fwd) bottomIdx = 1
             else if ( t0Fwd &&  t1Fwd) bottomIdx = targets[0].tr.left <= targets[1].tr.left ? 0 : 1
@@ -493,8 +498,7 @@ export default function ProcessMap({ processes }) {
         targets.forEach((t, ti) => {
           const { oi, tr } = t
           const fromBottom = ti === bottomIdx
-          // backward = target is clearly to the left of the diamond
-          const isBackward = tr.left < fr.left - 5
+          const isBackward = checkBackward(tr)
 
           const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           const y1 = fromBottom ? fr.bottom           : fr.cy
@@ -506,10 +510,17 @@ export default function ProcessMap({ processes }) {
             x2 = (tr.left + tr.right) / 2; y2 = tr.top
             isArch = false; arrowDir = 'down'
           } else if (isBackward) {
-            // Right-exit backward: right to gap → below all rows → left → up → arrive right side
-            x2 = tr.right; y2 = tr.cy
-            belowY = Math.max(srcCellBottom, tr.bottom) + 16
-            routeRight = srcCellRight + 6; arrowDir = 'left'
+            const sameColBackward = Math.abs(tr.left - fr.left) < DIAG
+            if (sameColBackward) {
+              // Same column but above: exit right → go up → arrive right side (short route)
+              x2 = tr.right; y2 = tr.cy
+              routeRight = srcCellRight + 6; arrowDir = 'left'
+            } else {
+              // Different column to the left: exit right → below all rows → left → arrive right side
+              x2 = tr.right; y2 = tr.cy
+              belowY = Math.max(srcCellBottom, tr.bottom) + 16
+              routeRight = srcCellRight + 6; arrowDir = 'left'
+            }
           } else if (tr.left > fr.right) {
             // Right-exit forward to further column: arch above row
             x2 = tr.left; y2 = tr.cy
