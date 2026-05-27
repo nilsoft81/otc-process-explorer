@@ -486,16 +486,14 @@ export default function ProcessMap({ processes }) {
           const x2 = fromBottom ? (tr.left + tr.right) / 2 : tr.left
           const y2 = fromBottom ? tr.top                    : tr.cy
 
-          // Long right-exit: arch above row to skip intermediate columns
-          const isArch = !fromBottom && (tr.left - x1) > 180
-          const aboveY = isArch ? srcCellTop - 12 : undefined
-          // Short right-exit: route via right edge of source column (avoids crossing boxes)
-          const routeX = (!fromBottom && !isArch) ? srcCellRight + 4 : undefined
+          // Right-exit: always arch above both rows so no intermediate box is crossed
+          const isArch = !fromBottom
+          const aboveY = isArch ? Math.min(srcCellTop, tr.top) - 12 : undefined
 
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
-            fromBottom, arch: isArch, aboveY, routeX,
+            fromBottom, arch: isArch, aboveY,
             arrowDir: fromBottom ? 'down' : 'right' })
           anyDrawn = true
         })
