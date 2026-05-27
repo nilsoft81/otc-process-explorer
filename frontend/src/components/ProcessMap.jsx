@@ -500,8 +500,9 @@ export default function ProcessMap({ processes }) {
           const fromBottom = ti === bottomIdx
           const isBackward = checkBackward(tr)
 
-          const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
-          const y1 = fromBottom ? fr.bottom           : fr.cy
+          let x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
+          let y1 = fromBottom ? fr.bottom           : fr.cy
+          let usesBottomExit = fromBottom
 
           let x2, y2, isArch, aboveY, belowY, routeRight, arrowDir
 
@@ -525,6 +526,11 @@ export default function ProcessMap({ processes }) {
             // Right-exit forward to further column: arch above row
             x2 = tr.left; y2 = tr.cy
             isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
+          } else if (tr.top > fr.bottom) {
+            // Same column, non-bottom target is also below: use offset bottom exit (avoids wide side arc)
+            x1 = fr.left + DIAG / 2 + 22; y1 = fr.bottom
+            x2 = (tr.left + tr.right) / 2; y2 = tr.top
+            isArch = false; arrowDir = 'down'; usesBottomExit = true
           } else {
             // Right-exit same/nearby column: right to gap → down → arrive right side
             x2 = tr.right; y2 = tr.cy
@@ -534,7 +540,7 @@ export default function ProcessMap({ processes }) {
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
-            fromBottom, arch: isArch, aboveY, belowY, routeRight, arrowDir })
+            fromBottom: usesBottomExit, arch: isArch, aboveY, belowY, routeRight, arrowDir })
           anyDrawn = true
         })
         return anyDrawn
