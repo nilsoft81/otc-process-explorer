@@ -529,10 +529,18 @@ export default function ProcessMap({ processes }) {
             x2 = tr.left; y2 = tr.cy
             isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
           } else if (tr.top > fr.bottom) {
-            // Non-bottom target also below in same column: exit LEFT → outside left margin → down → arrive target left face
-            x1 = fr.left; y1 = fr.cy
-            x2 = tr.left; y2 = tr.cy
-            routeLeft = srcCellLeft - 6; arrowDir = 'right'
+            // Non-bottom target also below in same column.
+            // L4 decisions (inside expanded L3): exit LEFT (left of expanded box, clean).
+            // L3 decisions (column-level): exit RIGHT (open space to the right of the column).
+            const isL4Dec = decNode.seq.split('.').length === 4
+            if (isL4Dec) {
+              x1 = fr.left; y1 = fr.cy
+              x2 = tr.left; y2 = tr.cy
+              routeLeft = srcCellLeft - 6; arrowDir = 'right'
+            } else {
+              x2 = tr.right; y2 = tr.cy
+              routeRight = tr.right + 8; arrowDir = 'left'
+            }
           } else {
             // Right-exit same/nearby column: right to gap → down → arrive right side
             x2 = tr.right; y2 = tr.cy
@@ -548,12 +556,13 @@ export default function ProcessMap({ processes }) {
         return anyDrawn
       }
 
-      // L3 decisions: last step in SEG, only when NOT expanded to show L4 children
-      const lastL3 = steps[steps.length - 1]
-      if (lastL3.step_type === 'Decision' && lastL3.decision_outcomes
-          && !(expL3.has(lastL3.seq) && lastL3.children?.length)) {
-        if (drawDecisionArrows(lastL3)) decisionCols.add(ci)
-      }
+      // L3 decisions: any step in the SEG column, not just the last
+      steps.forEach(step => {
+        if (step.step_type === 'Decision' && step.decision_outcomes
+            && !(expL3.has(step.seq) && step.children?.length)) {
+          if (drawDecisionArrows(step)) decisionCols.add(ci)
+        }
+      })
 
       // L4 decisions: inside expanded L3 steps
       steps.forEach(step => {
