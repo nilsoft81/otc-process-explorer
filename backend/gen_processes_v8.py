@@ -20,7 +20,7 @@ Column indices (0-based):
 """
 import openpyxl, re, os
 
-wb = openpyxl.load_workbook('Detailed Process Flows_v1.xlsx', data_only=True)
+wb = openpyxl.load_workbook('Detailed Process Flows_v3.xlsx', data_only=True)
 ws = wb['Process Design']
 all_rows = list(ws.iter_rows(values_only=True))
 
