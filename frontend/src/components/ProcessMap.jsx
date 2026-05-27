@@ -515,9 +515,10 @@ export default function ProcessMap({ processes }) {
           } else if (isBackward) {
             const sameColBackward = Math.abs(tr.left - fr.left) < DIAG
             if (sameColBackward) {
-              // Same column but above: exit right → go up → arrive right side (short route)
-              x2 = tr.right; y2 = tr.cy
-              routeRight = srcCellRight + 6; arrowDir = 'left'
+              // Same column but above: exit LEFT vertex → left outside column → up → arrive target left face
+              x1 = fr.left; y1 = fr.cy
+              x2 = tr.left; y2 = tr.cy
+              routeLeft = srcCellLeft - 6; arrowDir = 'right'
             } else {
               // Different column to the left: exit right → below all rows → left → arrive right side
               x2 = tr.right; y2 = tr.cy
