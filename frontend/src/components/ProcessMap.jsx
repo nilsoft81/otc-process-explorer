@@ -487,12 +487,8 @@ export default function ProcessMap({ processes }) {
           return t.length > s.length
         }
 
-        // Both targets same-column-above: assign exits by seq order (forward→LEFT, loop-back→RIGHT)
-        const bothSameColBwd = targets.length === 2 &&
-          targets.every(t => checkBackward(t.tr) && Math.abs(t.tr.left - fr.left) < DIAG)
-
         // bottomIdx: the target closest below the diamond (immediate next step) exits bottom.
-        // For all-backward, least-backward (largest tr.left) exits bottom.
+        // Both-backward → -1 (no bottom exit; both routed via side exits by seqAfter).
         let bottomIdx = 0
         if (targets.length === 2) {
           const t0 = targets[0].tr, t1 = targets[1].tr
@@ -507,7 +503,7 @@ export default function ProcessMap({ processes }) {
             else                         bottomIdx = t0.left <= t1.left ? 0 : 1
           } else if (!t0Bwd) { bottomIdx = 0 }
             else if (!t1Bwd) { bottomIdx = 1 }
-            else             { bottomIdx = t0.left >= t1.left ? 0 : 1 }
+            else             { bottomIdx = -1 }  // both backward: no bottom exit
         }
 
         targets.forEach((t, ti) => {
@@ -521,29 +517,33 @@ export default function ProcessMap({ processes }) {
 
           let x2, y2, isArch, aboveY, belowY, routeRight, routeLeft, arrowDir
 
-          if (bothSameColBwd) {
-            // Both targets in same column above: seq-forward→LEFT exit, seq-backward loop→RIGHT exit
-            usesBottomExit = false
-            if (seqAfter(t.targetSeq, decNode.seq)) {
-              x1 = fr.left; y1 = fr.cy
+          if (fromBottom) {
+            // Bottom-exit — but for L3 decisions going to a different swimlane row, use LEFT exit
+            // to avoid cutting through intermediate role-row boxes.
+            const isL3Dec = decNode.seq.split('.').length === 3
+            const crossesRow = isL3Dec && srcCellRect != null &&
+              (tr.top > srcCellBottom + 5 || tr.bottom < srcCellTop - 5)
+            if (crossesRow) {
+              x1 = fr.left; y1 = fr.cy; usesBottomExit = false
               x2 = tr.left; y2 = tr.cy
               routeLeft = srcCellLeft - 6; arrowDir = 'right'
             } else {
-              x1 = fr.right; y1 = fr.cy
-              x2 = tr.right; y2 = tr.cy
-              routeRight = srcCellRight + 6; arrowDir = 'left'
+              x2 = (tr.left + tr.right) / 2; y2 = tr.top
+              isArch = false; arrowDir = 'down'
             }
-          } else if (fromBottom) {
-            // Bottom-exit: straight or midY-jog down to top of target
-            x2 = (tr.left + tr.right) / 2; y2 = tr.top
-            isArch = false; arrowDir = 'down'
           } else if (isBackward) {
             const sameColBackward = Math.abs(tr.left - fr.left) < DIAG
             if (sameColBackward) {
-              // Same column but above: exit LEFT vertex → left outside column → up → arrive target left face
-              x1 = fr.left; y1 = fr.cy
-              x2 = tr.left; y2 = tr.cy
-              routeLeft = srcCellLeft - 6; arrowDir = 'right'
+              // Same column but above: seq-forward step→LEFT exit, true loop-back→RIGHT exit
+              if (seqAfter(t.targetSeq, decNode.seq)) {
+                x1 = fr.left; y1 = fr.cy
+                x2 = tr.left; y2 = tr.cy
+                routeLeft = srcCellLeft - 6; arrowDir = 'right'
+              } else {
+                x1 = fr.right; y1 = fr.cy
+                x2 = tr.right; y2 = tr.cy
+                routeRight = srcCellRight + 6; arrowDir = 'left'
+              }
             } else {
               // Different column to the left: exit right → below all rows → left → arrive right side
               x2 = tr.right; y2 = tr.cy
