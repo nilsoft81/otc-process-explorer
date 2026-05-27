@@ -478,6 +478,19 @@ export default function ProcessMap({ processes }) {
           tr.left < fr.left - 5 ||
           (Math.abs(tr.left - fr.left) < DIAG && tr.top < fr.top - 5)
 
+        // seqAfter: is targetSeq numerically later than sourceSeq?
+        const seqAfter = (tSeq, sSeq) => {
+          const t = tSeq.split('.').map(Number), s = sSeq.split('.').map(Number)
+          for (let i = 0; i < Math.min(t.length, s.length); i++) {
+            if (t[i] !== s[i]) return t[i] > s[i]
+          }
+          return t.length > s.length
+        }
+
+        // Both targets same-column-above: assign exits by seq order (forward→LEFT, loop-back→RIGHT)
+        const bothSameColBwd = targets.length === 2 &&
+          targets.every(t => checkBackward(t.tr) && Math.abs(t.tr.left - fr.left) < DIAG)
+
         // bottomIdx: the target closest below the diamond (immediate next step) exits bottom.
         // For all-backward, least-backward (largest tr.left) exits bottom.
         let bottomIdx = 0
@@ -508,7 +521,19 @@ export default function ProcessMap({ processes }) {
 
           let x2, y2, isArch, aboveY, belowY, routeRight, routeLeft, arrowDir
 
-          if (fromBottom) {
+          if (bothSameColBwd) {
+            // Both targets in same column above: seq-forward→LEFT exit, seq-backward loop→RIGHT exit
+            usesBottomExit = false
+            if (seqAfter(t.targetSeq, decNode.seq)) {
+              x1 = fr.left; y1 = fr.cy
+              x2 = tr.left; y2 = tr.cy
+              routeLeft = srcCellLeft - 6; arrowDir = 'right'
+            } else {
+              x1 = fr.right; y1 = fr.cy
+              x2 = tr.right; y2 = tr.cy
+              routeRight = srcCellRight + 6; arrowDir = 'left'
+            }
+          } else if (fromBottom) {
             // Bottom-exit: straight or midY-jog down to top of target
             x2 = (tr.left + tr.right) / 2; y2 = tr.top
             isArch = false; arrowDir = 'down'
