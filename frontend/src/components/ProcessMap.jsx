@@ -459,6 +459,7 @@ export default function ProcessMap({ processes }) {
         const srcCellRect = srcCellEl ? toC(srcCellEl.getBoundingClientRect()) : null
         const srcCellTop   = srcCellRect ? srcCellRect.top   : fr.top
         const srcCellRight = srcCellRect ? srcCellRect.right : fr.right + 20
+        const srcCellLeft  = srcCellRect ? srcCellRect.left  : fr.left - 20
 
         // Parse all targets first so we can compare positions
         const targets = decNode.decision_outcomes.split('|').map(o => o.trim()).map((out, oi) => {
@@ -477,22 +478,23 @@ export default function ProcessMap({ processes }) {
           tr.left < fr.left - 5 ||
           (Math.abs(tr.left - fr.left) < DIAG && tr.top < fr.top - 5)
 
-        // bottomIdx: prefer the forward-going target (right of or same column as diamond).
-        // For all-backward, prefer the least-backward (largest tr.left = closest to source).
+        // bottomIdx: the target closest below the diamond (immediate next step) exits bottom.
+        // For all-backward, least-backward (largest tr.left) exits bottom.
         let bottomIdx = 0
         if (targets.length === 2) {
-          const sameCol = Math.abs(targets[0].tr.left - targets[1].tr.left) < 5
-          if (sameCol) {
-            // Same column: the one below the diamond = next step = bottom exit
-            bottomIdx = targets[0].tr.top >= fr.top ? 0 : 1
-          } else {
-            const t0Fwd = !checkBackward(targets[0].tr)
-            const t1Fwd = !checkBackward(targets[1].tr)
-            if      ( t0Fwd && !t1Fwd) bottomIdx = 0
-            else if (!t0Fwd &&  t1Fwd) bottomIdx = 1
-            else if ( t0Fwd &&  t1Fwd) bottomIdx = targets[0].tr.left <= targets[1].tr.left ? 0 : 1
-            else                       bottomIdx = targets[0].tr.left >= targets[1].tr.left ? 0 : 1
-          }
+          const t0 = targets[0].tr, t1 = targets[1].tr
+          const t0Bwd = checkBackward(t0), t1Bwd = checkBackward(t1)
+          if (!t0Bwd && !t1Bwd) {
+            // Both forward: closer one below the diamond (smallest positive gap) exits bottom
+            const d0 = t0.top - fr.bottom, d1 = t1.top - fr.bottom
+            const t0Below = d0 > -5, t1Below = d1 > -5
+            if      (t0Below && t1Below) bottomIdx = d0 <= d1 ? 0 : 1
+            else if (t0Below)            bottomIdx = 0
+            else if (t1Below)            bottomIdx = 1
+            else                         bottomIdx = t0.left <= t1.left ? 0 : 1
+          } else if (!t0Bwd) { bottomIdx = 0 }
+            else if (!t1Bwd) { bottomIdx = 1 }
+            else             { bottomIdx = t0.left >= t1.left ? 0 : 1 }
         }
 
         targets.forEach((t, ti) => {
@@ -504,7 +506,7 @@ export default function ProcessMap({ processes }) {
           let y1 = fromBottom ? fr.bottom           : fr.cy
           let usesBottomExit = fromBottom
 
-          let x2, y2, isArch, aboveY, belowY, routeRight, arrowDir
+          let x2, y2, isArch, aboveY, belowY, routeRight, routeLeft, arrowDir
 
           if (fromBottom) {
             // Bottom-exit: straight or midY-jog down to top of target
@@ -527,10 +529,10 @@ export default function ProcessMap({ processes }) {
             x2 = tr.left; y2 = tr.cy
             isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
           } else if (tr.top > fr.bottom) {
-            // Same column, non-bottom target is also below: use offset bottom exit (avoids wide side arc)
-            x1 = fr.left + DIAG / 2 + 22; y1 = fr.bottom
-            x2 = (tr.left + tr.right) / 2; y2 = tr.top
-            isArch = false; arrowDir = 'down'; usesBottomExit = true
+            // Non-bottom target also below in same column: exit LEFT → outside left margin → down → arrive target left face
+            x1 = fr.left; y1 = fr.cy
+            x2 = tr.left; y2 = tr.cy
+            routeLeft = srcCellLeft - 6; arrowDir = 'right'
           } else {
             // Right-exit same/nearby column: right to gap → down → arrive right side
             x2 = tr.right; y2 = tr.cy
@@ -540,7 +542,7 @@ export default function ProcessMap({ processes }) {
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
-            fromBottom: usesBottomExit, arch: isArch, aboveY, belowY, routeRight, arrowDir })
+            fromBottom: usesBottomExit, arch: isArch, aboveY, belowY, routeRight, routeLeft, arrowDir })
           anyDrawn = true
         })
         return anyDrawn
@@ -815,6 +817,11 @@ export default function ProcessMap({ processes }) {
             // Same-column right-exit: right to gap → down → left to target right side
             d = `M${a.x1},${a.y1} L${a.routeRight},${a.y1} L${a.routeRight},${a.y2} L${a.x2},${a.y2}`
             labelX = (a.x1 + a.routeRight) / 2
+            labelY = a.y1 - 6
+          } else if (a.routeLeft != null) {
+            // Left-exit: exit left vertex → outside left margin → down → right to target left face
+            d = `M${a.x1},${a.y1} L${a.routeLeft},${a.y1} L${a.routeLeft},${a.y2} L${a.x2},${a.y2}`
+            labelX = (a.x1 + a.routeLeft) / 2
             labelY = a.y1 - 6
           } else {
             // Regular flow arrow: L-shape through midpoint gap between columns
