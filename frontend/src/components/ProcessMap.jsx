@@ -460,29 +460,35 @@ export default function ProcessMap({ processes }) {
         const srcCellTop   = srcCellRect ? srcCellRect.top   : fr.top
         const srcCellRight = srcCellRect ? srcCellRect.right : fr.right + 20
 
-        decNode.decision_outcomes.split('|').map(o => o.trim()).forEach((out, oi) => {
+        // Parse all targets first so we can compare positions
+        const targets = decNode.decision_outcomes.split('|').map(o => o.trim()).map((out, oi) => {
           const m = out.match(/proceed to\s+(.+)/i)
-          if (!m) return
+          if (!m) return null
           const targetSeq = m[1].trim()
-
           const toEl = seqBoxRefs.current[targetSeq]
-          if (!toEl) return
-          const tr = toC(toEl.getBoundingClientRect())
-          const toDiamond = toEl.dataset?.diamond === 'true'
+          if (!toEl) return null
+          return { oi, out, targetSeq, toEl, tr: toC(toEl.getBoundingClientRect()) }
+        }).filter(Boolean)
 
-          // Outcome-index exit direction: YES (oi=0) → bottom vertex, NO (oi=1) → right vertex
-          const fromBottom = oi === 0
+        // "Next step" target (horizontally nearest) → exits BOTTOM → arrives at TOP
+        // "Jump" target (farther away)              → exits RIGHT  → arrives at LEFT SIDE
+        let bottomIdx = 0
+        if (targets.length === 2) {
+          bottomIdx = targets[0].tr.left <= targets[1].tr.left ? 0 : 1
+        }
+
+        targets.forEach((t, ti) => {
+          const { oi, tr } = t
+          const fromBottom = ti === bottomIdx
           const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           const y1 = fromBottom ? fr.bottom           : fr.cy
+          // Bottom-exit arrives at top-center; right-exit arrives at left-side-center
+          const x2 = fromBottom ? (tr.left + tr.right) / 2 : tr.left
+          const y2 = fromBottom ? tr.top                    : tr.cy
 
-          // All arrivals land at top-center of target (arrowDir='down')
-          const x2 = (tr.left + tr.right) / 2
-          const y2 = toDiamond ? tr.top : tr.top
-
-          // Long right-exit: arch above row to skip all intermediate columns
-          const isArch = !fromBottom && ((tr.left + tr.right) / 2 - x1) > 180
+          // Long right-exit: arch above row to skip intermediate columns
+          const isArch = !fromBottom && (tr.left - x1) > 180
           const aboveY = isArch ? srcCellTop - 12 : undefined
-
           // Short right-exit: route via right edge of source column (avoids crossing boxes)
           const routeX = (!fromBottom && !isArch) ? srcCellRight + 4 : undefined
 
@@ -490,7 +496,7 @@ export default function ProcessMap({ processes }) {
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
             fromBottom, arch: isArch, aboveY, routeX,
-            arrowDir: 'down' })
+            arrowDir: fromBottom ? 'down' : 'right' })
           anyDrawn = true
         })
         return anyDrawn
@@ -738,10 +744,11 @@ export default function ProcessMap({ processes }) {
           let d, labelX, labelY
 
           if (a.arch) {
-            // Long right-exit: arch above the row, clear of all intermediate boxes
+            // Long right-exit: arch above the row, arrive at left side with horizontal approach
             const ay = a.aboveY ?? Math.min(a.y1, a.y2) - 12
-            d = `M${a.x1},${a.y1} L${a.x1},${ay} L${a.x2},${ay} L${a.x2},${a.y2}`
-            labelX = (a.x1 + a.x2) / 2
+            const approachX = a.x2 - 15  // 15px horizontal run before arrowhead
+            d = `M${a.x1},${a.y1} L${a.x1},${ay} L${approachX},${ay} L${approachX},${a.y2} L${a.x2},${a.y2}`
+            labelX = (a.x1 + approachX) / 2
             labelY = ay - 4
           } else if (a.fromBottom) {
             // YES: exit bottom → arrive top-center of target (nearly straight down)
