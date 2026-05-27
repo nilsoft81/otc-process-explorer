@@ -470,44 +470,60 @@ export default function ProcessMap({ processes }) {
           return { oi, out, targetSeq, toEl, tr: toC(toEl.getBoundingClientRect()) }
         }).filter(Boolean)
 
-        // "Next step" target (nearest) → exits BOTTOM → arrives at TOP
-        // "Jump" target (farther)      → exits RIGHT  → arrives at LEFT or RIGHT side
+        const srcCellBottom = srcCellRect ? srcCellRect.bottom : fr.bottom + 20
+
+        // bottomIdx: prefer the forward-going target (right of or same column as diamond).
+        // For all-backward, prefer the least-backward (largest tr.left = closest to source).
         let bottomIdx = 0
         if (targets.length === 2) {
           const sameCol = Math.abs(targets[0].tr.left - targets[1].tr.left) < 5
           if (sameCol) {
-            // Both in same column: closer vertically (smaller tr.top) = next step = bottom exit
+            // Same column: vertically closer to diamond = next step = bottom exit
             bottomIdx = targets[0].tr.top <= targets[1].tr.top ? 0 : 1
           } else {
-            bottomIdx = targets[0].tr.left <= targets[1].tr.left ? 0 : 1
+            const t0Fwd = targets[0].tr.left >= fr.left
+            const t1Fwd = targets[1].tr.left >= fr.left
+            if      ( t0Fwd && !t1Fwd) bottomIdx = 0
+            else if (!t0Fwd &&  t1Fwd) bottomIdx = 1
+            else if ( t0Fwd &&  t1Fwd) bottomIdx = targets[0].tr.left <= targets[1].tr.left ? 0 : 1
+            else                       bottomIdx = targets[0].tr.left >= targets[1].tr.left ? 0 : 1
           }
         }
 
         targets.forEach((t, ti) => {
           const { oi, tr } = t
           const fromBottom = ti === bottomIdx
+          // backward = target is clearly to the left of the diamond
+          const isBackward = tr.left < fr.left - 5
+
           const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           const y1 = fromBottom ? fr.bottom           : fr.cy
 
-          let x2, y2, isArch, aboveY, routeRight, arrowDir
+          let x2, y2, isArch, aboveY, belowY, routeRight, arrowDir
+
           if (fromBottom) {
-            // Bottom-exit: arrive at top-center of target
+            // Bottom-exit: straight or midY-jog down to top of target
             x2 = (tr.left + tr.right) / 2; y2 = tr.top
             isArch = false; arrowDir = 'down'
+          } else if (isBackward) {
+            // Right-exit backward: right to gap → below all rows → left → up → arrive right side
+            x2 = tr.right; y2 = tr.cy
+            belowY = Math.max(srcCellBottom, tr.bottom) + 16
+            routeRight = srcCellRight + 6; arrowDir = 'left'
           } else if (tr.left > fr.right) {
-            // Right-exit to a further column: arch above row to skip all intermediate boxes
+            // Right-exit forward to further column: arch above row
             x2 = tr.left; y2 = tr.cy
             isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
           } else {
-            // Right-exit to same/nearby column: route right in gap → down → arrive at RIGHT side
+            // Right-exit same/nearby column: right to gap → down → arrive right side
             x2 = tr.right; y2 = tr.cy
-            isArch = false; routeRight = srcCellRight + 6; arrowDir = 'left'
+            routeRight = srcCellRight + 6; arrowDir = 'left'
           }
 
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
-            fromBottom, arch: isArch, aboveY, routeRight, arrowDir })
+            fromBottom, arch: isArch, aboveY, belowY, routeRight, arrowDir })
           anyDrawn = true
         })
         return anyDrawn
@@ -772,6 +788,12 @@ export default function ProcessMap({ processes }) {
             }
             labelX = (a.x1 + a.x2) / 2
             labelY = a.y1 + 16
+          } else if (a.belowY != null) {
+            // Backward arch: right to gap → down below all rows → left past target → up → right to target right side
+            const approachX = a.x2 + 15
+            d = `M${a.x1},${a.y1} L${a.routeRight},${a.y1} L${a.routeRight},${a.belowY} L${approachX},${a.belowY} L${approachX},${a.y2} L${a.x2},${a.y2}`
+            labelX = (a.x1 + a.routeRight) / 2
+            labelY = a.y1 - 6
           } else if (a.routeRight != null) {
             // Same-column right-exit: right to gap → down → left to target right side
             d = `M${a.x1},${a.y1} L${a.routeRight},${a.y1} L${a.routeRight},${a.y2} L${a.x2},${a.y2}`
