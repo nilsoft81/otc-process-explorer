@@ -470,11 +470,17 @@ export default function ProcessMap({ processes }) {
           return { oi, out, targetSeq, toEl, tr: toC(toEl.getBoundingClientRect()) }
         }).filter(Boolean)
 
-        // "Next step" target (horizontally nearest) → exits BOTTOM → arrives at TOP
-        // "Jump" target (farther away)              → exits RIGHT  → arrives at LEFT SIDE
+        // "Next step" target (nearest) → exits BOTTOM → arrives at TOP
+        // "Jump" target (farther)      → exits RIGHT  → arrives at LEFT or RIGHT side
         let bottomIdx = 0
         if (targets.length === 2) {
-          bottomIdx = targets[0].tr.left <= targets[1].tr.left ? 0 : 1
+          const sameCol = Math.abs(targets[0].tr.left - targets[1].tr.left) < 5
+          if (sameCol) {
+            // Both in same column: closer vertically (smaller tr.top) = next step = bottom exit
+            bottomIdx = targets[0].tr.top <= targets[1].tr.top ? 0 : 1
+          } else {
+            bottomIdx = targets[0].tr.left <= targets[1].tr.left ? 0 : 1
+          }
         }
 
         targets.forEach((t, ti) => {
@@ -482,19 +488,26 @@ export default function ProcessMap({ processes }) {
           const fromBottom = ti === bottomIdx
           const x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           const y1 = fromBottom ? fr.bottom           : fr.cy
-          // Bottom-exit arrives at top-center; right-exit arrives at left-side-center
-          const x2 = fromBottom ? (tr.left + tr.right) / 2 : tr.left
-          const y2 = fromBottom ? tr.top                    : tr.cy
 
-          // Right-exit: always arch above both rows so no intermediate box is crossed
-          const isArch = !fromBottom
-          const aboveY = isArch ? Math.min(srcCellTop, tr.top) - 12 : undefined
+          let x2, y2, isArch, aboveY, routeRight, arrowDir
+          if (fromBottom) {
+            // Bottom-exit: arrive at top-center of target
+            x2 = (tr.left + tr.right) / 2; y2 = tr.top
+            isArch = false; arrowDir = 'down'
+          } else if (tr.left > fr.right) {
+            // Right-exit to a further column: arch above row to skip all intermediate boxes
+            x2 = tr.left; y2 = tr.cy
+            isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
+          } else {
+            // Right-exit to same/nearby column: route right in gap → down → arrive at RIGHT side
+            x2 = tr.right; y2 = tr.cy
+            isArch = false; routeRight = srcCellRight + 6; arrowDir = 'left'
+          }
 
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: oi === 0 ? 'YES' : 'NO',
-            fromBottom, arch: isArch, aboveY,
-            arrowDir: fromBottom ? 'down' : 'right' })
+            fromBottom, arch: isArch, aboveY, routeRight, arrowDir })
           anyDrawn = true
         })
         return anyDrawn
@@ -759,11 +772,10 @@ export default function ProcessMap({ processes }) {
             }
             labelX = (a.x1 + a.x2) / 2
             labelY = a.y1 + 16
-          } else if (a.routeX != null) {
-            // NO: exit right → column right edge → straight down → arrive at target
-            // Avoids all boxes: vertical is in the column-gap, horizontal is at target level
-            d = `M${a.x1},${a.y1} L${a.routeX},${a.y1} L${a.routeX},${a.y2} L${a.x2},${a.y2}`
-            labelX = (a.x1 + a.routeX) / 2
+          } else if (a.routeRight != null) {
+            // Same-column right-exit: right to gap → down → left to target right side
+            d = `M${a.x1},${a.y1} L${a.routeRight},${a.y1} L${a.routeRight},${a.y2} L${a.x2},${a.y2}`
+            labelX = (a.x1 + a.routeRight) / 2
             labelY = a.y1 - 6
           } else {
             // Regular flow arrow: L-shape through midpoint gap between columns
@@ -772,11 +784,13 @@ export default function ProcessMap({ processes }) {
             labelY = Math.min(a.y1, a.y2) - 4
           }
 
-          // Arrowhead: down when arriving vertically, right when arriving horizontally
+          // Arrowhead direction
           let ah
           if (a.arrowDir === 'down') {
             ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2+AH},${a.y2-AH}`
-          } else {
+          } else if (a.arrowDir === 'left') {
+            ah = `M${a.x2+AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2+AH},${a.y2+AH}`
+          } else {  // 'right'
             ah = `M${a.x2-AH},${a.y2-AH} L${a.x2},${a.y2} L${a.x2-AH},${a.y2+AH}`
           }
 
