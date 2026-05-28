@@ -518,12 +518,17 @@ export default function ProcessMap({ processes }) {
           let x2, y2, isArch, aboveY, belowY, routeRight, routeLeft, arrowDir
 
           if (fromBottom) {
-            // Bottom-exit — but for L3 decisions going to a different swimlane row, use LEFT exit
-            // to avoid cutting through intermediate role-row boxes.
+            // Bottom-exit — but redirect if target is far-right column (use arch) or
+            // L3 decision going to a different swimlane row (use LEFT exit).
             const isL3Dec = decNode.seq.split('.').length === 3
             const crossesRow = isL3Dec && srcCellRect != null &&
               (tr.top > srcCellBottom + 5 || tr.bottom < srcCellTop - 5)
-            if (crossesRow) {
+            if (tr.left > fr.right) {
+              // Target in a further-right column: arch above row, exit RIGHT side
+              x1 = fr.right; y1 = fr.cy; usesBottomExit = false
+              x2 = tr.left; y2 = tr.cy
+              isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
+            } else if (crossesRow) {
               x1 = fr.left; y1 = fr.cy; usesBottomExit = false
               x2 = tr.left; y2 = tr.cy
               routeLeft = srcCellLeft - 6; arrowDir = 'right'
@@ -534,8 +539,11 @@ export default function ProcessMap({ processes }) {
           } else if (isBackward) {
             const sameColBackward = Math.abs(tr.left - fr.left) < DIAG
             if (sameColBackward) {
-              // Same column but above: seq-forward step→LEFT exit, true loop-back→RIGHT exit
-              if (seqAfter(t.targetSeq, decNode.seq)) {
+              // Same column but above: if partner target is far-right (arch), force LEFT exit.
+              // Otherwise: seq-forward step→LEFT exit, true loop-back→RIGHT exit
+              const otherTarget = targets.find((_, i) => i !== ti)
+              const otherFarRight = otherTarget && otherTarget.tr.left > fr.right
+              if (otherFarRight || seqAfter(t.targetSeq, decNode.seq)) {
                 x1 = fr.left; y1 = fr.cy
                 x2 = tr.left; y2 = tr.cy
                 routeLeft = srcCellLeft - 6; arrowDir = 'right'
