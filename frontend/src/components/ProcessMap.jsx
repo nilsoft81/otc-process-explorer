@@ -524,10 +524,13 @@ export default function ProcessMap({ processes }) {
             const crossesRow = isL3Dec && srcCellRect != null &&
               (tr.top > srcCellBottom + 5 || tr.bottom < srcCellTop - 5)
             if (tr.left > fr.right) {
-              // Target in a further-right column: arch above row, exit RIGHT side
+              // Target in a further-right column: override to RIGHT exit.
+              // Only arch if non-adjacent (intermediate columns exist to avoid crossing).
               x1 = fr.right; y1 = fr.cy; usesBottomExit = false
-              x2 = tr.left; y2 = tr.cy
-              isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
+              x2 = tr.left; y2 = tr.cy; arrowDir = 'right'
+              if (tr.left > srcCellRight + 40) {
+                isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12
+              }
             } else if (crossesRow) {
               x1 = fr.left; y1 = fr.cy; usesBottomExit = false
               x2 = tr.left; y2 = tr.cy
@@ -559,9 +562,12 @@ export default function ProcessMap({ processes }) {
               routeRight = srcCellRight + 6; arrowDir = 'left'
             }
           } else if (tr.left > fr.right) {
-            // Right-exit forward to further column: arch above row
-            x2 = tr.left; y2 = tr.cy
-            isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12; arrowDir = 'right'
+            // Forward right-exit. Only arch if non-adjacent (needs to clear intermediate columns).
+            // For adjacent columns, a direct path is clean and avoids the up-then-down zigzag.
+            x2 = tr.left; y2 = tr.cy; arrowDir = 'right'
+            if (tr.left > srcCellRight + 40) {
+              isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12
+            }
           } else if (tr.top > fr.bottom) {
             // Non-bottom target also below in same column.
             // L4 decisions (inside expanded L3): exit LEFT (left of expanded box, clean).
