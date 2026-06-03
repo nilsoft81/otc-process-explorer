@@ -84,7 +84,7 @@ export default function UploadPage({ onBack, onSuccess }) {
             <p className="text-slate-400 text-sm leading-relaxed">
               Upload a new Excel file to update the process map. The file must contain a{' '}
               <code className="text-teal-300 bg-slate-800 px-1.5 py-0.5 rounded text-xs">Process Design</code>{' '}
-              tab with headers in <strong className="text-slate-300">row 4</strong> and data starting from row 5.
+              tab with headers in <strong className="text-slate-300">row 5</strong> and data starting from row 7.
               All 15 columns listed below must be present.
             </p>
           </div>

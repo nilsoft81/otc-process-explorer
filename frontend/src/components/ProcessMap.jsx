@@ -487,29 +487,15 @@ export default function ProcessMap({ processes }) {
           return t.length > s.length
         }
 
-        // bottomIdx: the target closest below the diamond (immediate next step) exits bottom.
-        // Both-backward → -1 (no bottom exit; both routed via side exits by seqAfter).
-        let bottomIdx = 0
-        if (targets.length === 2) {
-          const t0 = targets[0].tr, t1 = targets[1].tr
-          const t0Bwd = checkBackward(t0), t1Bwd = checkBackward(t1)
-          if (!t0Bwd && !t1Bwd) {
-            // Both forward: closer one below the diamond (smallest positive gap) exits bottom
-            const d0 = t0.top - fr.bottom, d1 = t1.top - fr.bottom
-            const t0Below = d0 > -5, t1Below = d1 > -5
-            if      (t0Below && t1Below) bottomIdx = d0 <= d1 ? 0 : 1
-            else if (t0Below)            bottomIdx = 0
-            else if (t1Below)            bottomIdx = 1
-            else                         bottomIdx = t0.left <= t1.left ? 0 : 1
-          } else if (!t0Bwd) { bottomIdx = 0 }
-            else if (!t1Bwd) { bottomIdx = 1 }
-            else             { bottomIdx = -1 }  // both backward: no bottom exit
-        }
-
         targets.forEach((t, ti) => {
-          const { oi, tr } = t
-          const fromBottom = ti === bottomIdx
+          const { oi, out, tr } = t
+          // Routing convention: YES exits bottom vertex, NO exits side vertex.
+          // Read YES/NO from the outcome text so order in Excel doesn't matter.
+          const isYes = out.trim().toLowerCase().startsWith('yes')
           const isBackward = checkBackward(tr)
+          // YES exits bottom unless the target is actually behind the diamond (backward),
+          // in which case it falls through to side-exit routing like NO.
+          const fromBottom = isYes && !isBackward
 
           let x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
           let y1 = fromBottom ? fr.bottom           : fr.cy
@@ -589,7 +575,7 @@ export default function ProcessMap({ processes }) {
 
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
-            label: oi === 0 ? 'YES' : 'NO',
+            label: isYes ? 'YES' : 'NO',
             fromBottom: usesBottomExit, arch: isArch, aboveY, belowY, routeRight, routeLeft, arrowDir })
           anyDrawn = true
         })
