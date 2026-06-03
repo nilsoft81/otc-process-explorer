@@ -4,6 +4,7 @@ import UploadPage from './components/UploadPage'
 import { Activity, RefreshCw, Download, Image, Upload } from 'lucide-react'
 import { downloadBPMN } from './utils/bpmnExport'
 import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
 const API = 'https://otc-process-explorer.onrender.com'
 
@@ -58,6 +59,39 @@ export default function App() {
       link.click()
     } catch (e) {
       console.error('Image export failed:', e)
+    }
+  }
+
+  async function downloadPDF() {
+    if (!mapRef.current) return
+    try {
+      // Capture the full scrollable content, not just the visible viewport
+      const scrollEl = mapRef.current.firstElementChild
+      const fullW = scrollEl.scrollWidth
+      const fullH = scrollEl.scrollHeight
+      const canvas = await html2canvas(scrollEl, {
+        backgroundColor: '#f8fafc',
+        scale: 1.5,
+        width: fullW,
+        height: fullH,
+        windowWidth: fullW,
+        windowHeight: fullH,
+        useCORS: true,
+      })
+      const imgData = canvas.toDataURL('image/jpeg', 0.88)
+      // 1px at 96 DPI = 0.75pt; divide by scale to get element pixels
+      const pxToPt = 72 / 96
+      const pdfW = (canvas.width  / 1.5) * pxToPt
+      const pdfH = (canvas.height / 1.5) * pxToPt
+      const pdf = new jsPDF({
+        orientation: pdfW > pdfH ? 'l' : 'p',
+        unit: 'pt',
+        format: [pdfW, pdfH],
+      })
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH)
+      pdf.save('otc-process-map.pdf')
+    } catch (e) {
+      console.error('PDF export failed:', e)
     }
   }
 
@@ -156,6 +190,15 @@ export default function App() {
               Download Image
             </button>
 
+            {/* Download PDF */}
+            <button
+              onClick={downloadPDF}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-300 text-xs font-medium hover:bg-rose-500/20 transition-colors flex-shrink-0"
+            >
+              <Download size={13} />
+              Download PDF
+            </button>
+
             {/* RACI legend */}
             <div className="flex items-center gap-2 flex-wrap">
               {RACI_LEGEND.map(r => (
@@ -176,7 +219,7 @@ export default function App() {
                 bg-violet-900/30 ring-violet-600/40">
                 <span className="text-violet-300 font-bold">🤖</span>
                 <span className="text-violet-300 font-bold">AI Agent</span>
-                <span className="text-slate-400">AI-responsible step</span>
+                <span className="text-slate-400">AI involvement step</span>
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg ring-1 text-xs
                 bg-slate-800/60 ring-slate-600/40">
