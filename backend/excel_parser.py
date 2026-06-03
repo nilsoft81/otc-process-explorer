@@ -149,8 +149,11 @@ def parse_excel(file_content: bytes) -> list:
             step_type = 'Automated'
 
         ai_flag = v(raw, C_AI)
+        auto_val = v(raw, C_AUTO)
+        sys_val = v(raw, C_SYS)
         is_ai = (bool(ai_flag) and ai_flag.lower() not in ('', 'n', 'no', 'none', 'future opportunity')) \
-                or 'AI Agent' in r_val
+                or 'AI Agent' in r_val \
+                or ('partial' in auto_val.lower() and 'agent' in sys_val.lower())
 
         rows_data.append({
             'lvl': lvl, 'seq': seq, 'name': name,
@@ -185,6 +188,7 @@ def parse_excel(file_content: bytes) -> list:
             'step_type': r['step_type'], 'system_tool': r['sys'],
             'raci': {'r': r['r'], 'a': r['a'], 'i': r['i']},
             'decision_outcomes': r['outcomes'] if r['outcomes'] else None,
+            'is_ai': r.get('is_ai', False),
         }
         if children is not None:
             node['children'] = children

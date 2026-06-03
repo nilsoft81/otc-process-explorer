@@ -94,8 +94,10 @@ for raw in all_rows[DATA_START:]:
         step_type = 'Automated'
 
     ai_flag = v(raw, C_AI)
+    auto_val = v(raw, C_AUTO)
     is_ai = (bool(ai_flag) and ai_flag.lower() not in ('', 'n', 'no', 'none', 'future opportunity')) \
-            or 'AI Agent' in r_val
+            or 'AI Agent' in r_val \
+            or ('partial' in auto_val.lower() and 'agent' in v(raw, C_SYS).lower())
 
     rows_data.append({
         'lvl': lvl, 'seq': seq, 'name': name,
@@ -174,6 +176,8 @@ def render_step(r, indent=0):
         parts.append(f'sys={py_str(r["sys"])}')
     if r['outcomes']:
         parts.append(f'outcomes={py_str(r["outcomes"])}')
+    if r.get('is_ai'):
+        parts.append('is_ai=True')
 
     children = r.get('children', [])
     if not children:
@@ -199,12 +203,13 @@ lines.append('# Auto-generated from Process_Flow_Template_v2 8.xlsx (Process Des
 lines.append('')
 lines.append('')
 lines.append('def _s(seq, name, desc="", step_type="Process", r="", a="", i="", sys="",')
-lines.append('        outcomes="", children=None):')
+lines.append('        outcomes="", is_ai=False, children=None):')
 lines.append('    node = {')
 lines.append('        "seq": seq, "name": name, "description": desc,')
 lines.append('        "step_type": step_type, "system_tool": sys,')
 lines.append('        "raci": {"r": r, "a": a, "i": i},')
 lines.append('        "decision_outcomes": outcomes if outcomes else None,')
+lines.append('        "is_ai": is_ai,')
 lines.append('    }')
 lines.append('    if children is not None:')
 lines.append('        node["children"] = children')

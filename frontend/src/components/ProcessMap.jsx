@@ -102,7 +102,7 @@ function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expa
   const textC = tc(level)
   const mutedC= mc(level)
   const w     = { L1:200, L2:185, L3:170, L4:160 }[level] ?? 170
-  const isAI  = node.raci?.r?.toUpperCase().includes('AI')
+  const isAI  = node.is_ai ?? node.raci?.r?.toUpperCase().includes('AI')
 
   return (
     <div ref={boxRef} onClick={onClick} style={{
@@ -166,7 +166,7 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   const dark  = darkBg(baseColor, level)
   const textC = tc(level)
   const mutedC= mc(level)
-  const isAI  = node.raci?.r?.toUpperCase().includes('AI')
+  const isAI  = node.is_ai ?? node.raci?.r?.toUpperCase().includes('AI')
 
   return (
     <div
