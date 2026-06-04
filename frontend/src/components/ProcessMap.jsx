@@ -522,8 +522,10 @@ export default function ProcessMap({ processes }) {
               x2 = tr.left; y2 = tr.cy
               routeLeft = srcCellLeft - 6; arrowDir = 'right'
             } else {
-              x2 = (tr.left + tr.right) / 2; y2 = tr.top
-              isArch = false; arrowDir = 'down'
+              // Route down the right column gap so the arrow never cuts through
+              // intermediate boxes that sit between the diamond and the target.
+              x2 = tr.right; y2 = tr.cy
+              routeRight = srcCellRight + 8; arrowDir = 'left'
             }
           } else if (isBackward) {
             const sameColBackward = Math.abs(tr.left - fr.left) < DIAG
@@ -832,16 +834,25 @@ export default function ProcessMap({ processes }) {
             labelX = (a.x1 + approachX) / 2
             labelY = ay - 4
           } else if (a.fromBottom) {
-            // YES: exit bottom → arrive top-center of target (nearly straight down)
-            const dx = Math.abs(a.x2 - a.x1)
-            if (dx < 15) {
-              d = `M${a.x1},${a.y1} L${a.x2},${a.y2}`
+            if (a.routeRight != null) {
+              // YES exits bottom → routes down right column gap → arrives at target right edge.
+              // This guarantees no intermediate boxes are crossed regardless of how many
+              // steps sit between the diamond and its YES target.
+              d = `M${a.x1},${a.y1} L${a.routeRight},${a.y1} L${a.routeRight},${a.y2} L${a.x2},${a.y2}`
+              labelX = (a.x1 + a.routeRight) / 2
+              labelY = a.y1 + 14
             } else {
-              const midY = (a.y1 + a.y2) / 2
-              d = `M${a.x1},${a.y1} L${a.x1},${midY} L${a.x2},${midY} L${a.x2},${a.y2}`
+              // Fallback straight-down (only reached if fromBottom is set via an override path)
+              const dx = Math.abs(a.x2 - a.x1)
+              if (dx < 15) {
+                d = `M${a.x1},${a.y1} L${a.x2},${a.y2}`
+              } else {
+                const midY = (a.y1 + a.y2) / 2
+                d = `M${a.x1},${a.y1} L${a.x1},${midY} L${a.x2},${midY} L${a.x2},${a.y2}`
+              }
+              labelX = (a.x1 + a.x2) / 2
+              labelY = a.y1 + 16
             }
-            labelX = (a.x1 + a.x2) / 2
-            labelY = a.y1 + 16
           } else if (a.belowY != null) {
             // Backward arch: right to gap → down below all rows → left past target → up → right to target right side
             const approachX = a.x2 + 15
