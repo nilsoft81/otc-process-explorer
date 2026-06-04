@@ -567,7 +567,7 @@ export default function ProcessMap({ processes }) {
               routeLeft = srcCellLeft - 6; arrowDir = 'right'
             } else {
               x2 = tr.right; y2 = tr.cy
-              routeRight = tr.right + 8; arrowDir = 'left'
+              routeRight = srcCellRight + 8; arrowDir = 'left'
             }
           } else {
             // Right-exit same/nearby column: right to gap → down → arrive right side
