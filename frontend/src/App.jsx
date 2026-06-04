@@ -12,6 +12,7 @@ const RACI_LEGEND = [
   { short: 'R', label: 'Responsible', dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-600/40', bg: 'bg-emerald-900/30' },
   { short: 'A', label: 'Accountable', dot: 'bg-slate-400',   text: 'text-slate-300',   ring: 'ring-slate-600/40',   bg: 'bg-slate-800/60'   },
   { short: 'I', label: 'Informed',    dot: 'bg-slate-500',   text: 'text-slate-400',   ring: 'ring-slate-600/40',   bg: 'bg-slate-800/40'   },
+  { short: 'C', label: 'Consulted',   dot: 'bg-sky-400',     text: 'text-sky-300',     ring: 'ring-sky-600/40',     bg: 'bg-sky-900/30'     },
 ]
 
 export default function App() {
