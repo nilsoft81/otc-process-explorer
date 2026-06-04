@@ -283,22 +283,34 @@ export default function ProcessMap({ processes }) {
 
   function togL1(id) {
     const was = expL1.has(id)
-    setExpL1(p => { const n=new Set(p); was?n.delete(id):n.add(id); return n })
-    if (was) {
-      const proc = processes.find(p=>p.id===id)
-      if (proc) {
-        setExpL2(p => { const n=new Set(p); proc.stages.forEach(s=>n.delete(s.id)); return n })
-        setExpL3(p => { const n=new Set(p); proc.stages.flatMap(s=>s.steps).forEach(s=>n.delete(s.seq)); return n })
+    const proc = processes.find(p => p.id === id)
+    setExpL1(p => { const n = new Set(p); was ? n.delete(id) : n.add(id); return n })
+    if (proc) {
+      if (was) {
+        // Collapsing: remove all L2 stages and L3 steps under this L1
+        setExpL2(p => { const n = new Set(p); proc.stages.forEach(s => n.delete(s.id)); return n })
+        setExpL3(p => { const n = new Set(p); proc.stages.flatMap(s => s.steps).forEach(s => n.delete(s.seq)); return n })
+      } else {
+        // Expanding: also expand all L2 stages and L3 steps (including L4 children) under this L1
+        setExpL2(p => { const n = new Set(p); proc.stages.forEach(s => n.add(s.id)); return n })
+        setExpL3(p => { const n = new Set(p); proc.stages.flatMap(s => s.steps).forEach(s => n.add(s.seq)); return n })
       }
     }
   }
   function togL2(id) {
     const was = expL2.has(id)
-    setExpL2(p => { const n=new Set(p); was?n.delete(id):n.add(id); return n })
-    if (was) {
-      for (const proc of processes) {
-        const st = proc.stages.find(s=>s.id===id)
-        if (st) { setExpL3(p => { const n=new Set(p); st.steps.forEach(s=>n.delete(s.seq)); return n }); break }
+    setExpL2(p => { const n = new Set(p); was ? n.delete(id) : n.add(id); return n })
+    for (const proc of processes) {
+      const st = proc.stages.find(s => s.id === id)
+      if (st) {
+        if (was) {
+          // Collapsing: remove all L3 steps under this L2
+          setExpL3(p => { const n = new Set(p); st.steps.forEach(s => n.delete(s.seq)); return n })
+        } else {
+          // Expanding: also expand all L3 steps (showing L4 children) under this L2
+          setExpL3(p => { const n = new Set(p); st.steps.forEach(s => n.add(s.seq)); return n })
+        }
+        break
       }
     }
   }

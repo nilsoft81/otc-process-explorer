@@ -150,6 +150,7 @@ export default function App() {
               <p className="text-xs text-slate-500">
                 Expandable process map · L1 → L4 · RACI · Systems · Handoffs
               </p>
+              <p className="text-xs text-teal-400/80 mt-0.5">Swimlanes are at L3 level</p>
             </div>
           </div>
 
