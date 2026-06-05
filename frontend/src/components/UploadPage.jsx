@@ -78,6 +78,12 @@ export default function UploadPage({ onBack, onSuccess }) {
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-8 py-10 w-full">
 
+          {/* Important notice */}
+          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/15 border border-amber-500/40">
+            <AlertCircle size={18} className="text-amber-400 flex-shrink-0" />
+            <p className="text-amber-300 text-sm font-semibold">File must be closed before uploading</p>
+          </div>
+
           {/* Page title */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-white mb-2">Upload Process Data</h1>
