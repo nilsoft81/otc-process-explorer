@@ -68,17 +68,22 @@ export default function App() {
     if (!mapRef.current) return
     setPdfLoading(true)
 
-    const scrollEl = mapRef.current.firstElementChild
+    const mainEl   = mapRef.current               // <main class="flex-1 overflow-hidden">
+    const scrollEl = mainEl.firstElementChild     // scroll container (overflow:auto, height:100%)
 
-    // ── Pre-capture DOM fixes ────────────────────────────────────────────────
-    // html2canvas has two known issues we must work around:
-    // 1. overflow:auto clips capture to the visible viewport — fix: set overflow:visible
-    // 2. position:sticky elements render solid black — fix: change to position:relative
-    const savedScroll = {
-      overflow:  scrollEl.style.overflow,
-      height:    scrollEl.style.height,
-      maxHeight: scrollEl.style.maxHeight,
+    // ── Pre-capture: remove ALL overflow clipping in the ancestor chain ──────
+    // Issue 1: <main> has Tailwind overflow-hidden — this clips the entire capture
+    //          to viewport height even after we expand scrollEl.
+    // Issue 2: scrollEl itself is overflow:auto — clips horizontally and vertically.
+    // Issue 3: position:sticky elements render solid black in html2canvas;
+    //          must also reset top/left so they don't offset after position changes.
+    const saved = {
+      mainOverflow:    mainEl.style.overflow,
+      scrollOverflow:  scrollEl.style.overflow,
+      scrollHeight:    scrollEl.style.height,
+      scrollMaxHeight: scrollEl.style.maxHeight,
     }
+    mainEl.style.overflow    = 'visible'   // override overflow-hidden class
     scrollEl.style.overflow  = 'visible'
     scrollEl.style.height    = 'auto'
     scrollEl.style.maxHeight = 'none'
@@ -86,12 +91,14 @@ export default function App() {
     const stickyFixes = []
     scrollEl.querySelectorAll('*').forEach(el => {
       if (window.getComputedStyle(el).position === 'sticky') {
-        stickyFixes.push([el, el.style.position])
+        stickyFixes.push({ el, position: el.style.position, top: el.style.top, left: el.style.left })
         el.style.position = 'relative'
+        el.style.top      = 'auto'    // prevent residual offset that causes black rendering
+        el.style.left     = 'auto'
       }
     })
 
-    // Two animation frames — let the browser reflow before measuring.
+    // Let the browser fully reflow with the new layout before measuring.
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
 
     try {
@@ -104,28 +111,39 @@ export default function App() {
       const canvas = await html2canvas(scrollEl, {
         backgroundColor: '#f1f5f9',
         scale,
-        useCORS: true,
-        logging: false,
+        // Explicitly pass full content dimensions so html2canvas renders
+        // everything, not just what fits in the current viewport.
+        width:        fullW,
+        height:       fullH,
+        windowWidth:  fullW,
+        windowHeight: fullH,
+        useCORS:  true,
+        logging:  false,
       })
 
       const imgData = canvas.toDataURL('image/jpeg', scale < 1 ? 0.80 : 0.88)
       if (!imgData || imgData === 'data:,') throw new Error('Empty canvas')
 
-      const pt = 72 / 96
+      const pt   = 72 / 96
       const pdfW = fullW * pt
       const pdfH = fullH * pt
-      const pdf = new jsPDF({ orientation: pdfW > pdfH ? 'l' : 'p', unit: 'pt', format: [pdfW, pdfH] })
+      const pdf  = new jsPDF({ orientation: pdfW > pdfH ? 'l' : 'p', unit: 'pt', format: [pdfW, pdfH] })
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH)
       pdf.save('otc-process-map.pdf')
     } catch (e) {
       console.error('PDF export failed:', e)
       alert('PDF export failed — try collapsing some sections to reduce map size.')
     } finally {
-      // ── Restore DOM ─────────────────────────────────────────────────────────
-      scrollEl.style.overflow  = savedScroll.overflow
-      scrollEl.style.height    = savedScroll.height
-      scrollEl.style.maxHeight = savedScroll.maxHeight
-      stickyFixes.forEach(([el, p]) => { el.style.position = p })
+      // ── Restore DOM ──────────────────────────────────────────────────────
+      mainEl.style.overflow    = saved.mainOverflow
+      scrollEl.style.overflow  = saved.scrollOverflow
+      scrollEl.style.height    = saved.scrollHeight
+      scrollEl.style.maxHeight = saved.scrollMaxHeight
+      stickyFixes.forEach(({ el, position, top, left }) => {
+        el.style.position = position
+        el.style.top      = top
+        el.style.left     = left
+      })
       setPdfLoading(false)
     }
   }
