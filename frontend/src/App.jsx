@@ -53,14 +53,79 @@ export default function App() {
 
   async function downloadImage() {
     if (!mapRef.current) return
+    const mainEl   = mapRef.current
+    const scrollEl = mainEl.firstElementChild
+
+    const fullW = scrollEl.scrollWidth
+    const fullH = scrollEl.scrollHeight
+
+    const saved = {
+      mainOverflow:    mainEl.style.overflow,
+      scrollOverflow:  scrollEl.style.overflow,
+      scrollWidth:     scrollEl.style.width,
+      scrollHeight:    scrollEl.style.height,
+      scrollMaxHeight: scrollEl.style.maxHeight,
+    }
+    mainEl.style.overflow    = 'visible'
+    scrollEl.style.overflow  = 'visible'
+    scrollEl.style.width     = fullW + 'px'
+    scrollEl.style.height    = fullH + 'px'
+    scrollEl.style.maxHeight = 'none'
+
+    const stickyFixes = []
+    scrollEl.querySelectorAll('*').forEach(el => {
+      if (window.getComputedStyle(el).position === 'sticky') {
+        stickyFixes.push({ el, position: el.style.position, top: el.style.top, left: el.style.left })
+        el.style.position = 'relative'
+        el.style.top      = 'auto'
+        el.style.left     = 'auto'
+      }
+    })
+
+    const DARK_BG_RGB = 'rgb(30, 41, 59)'
+    const LIGHT_TEXT  = new Set(['rgb(226, 232, 240)', 'rgb(148, 163, 184)', 'rgb(100, 116, 139)', 'rgb(241, 245, 249)'])
+    const darkFixes = []
+    scrollEl.querySelectorAll('*').forEach(el => {
+      if (window.getComputedStyle(el).backgroundColor === DARK_BG_RGB) {
+        darkFixes.push({ el, prop: 'background', val: el.style.background })
+        el.style.background = '#dde3ed'
+        ;[el, ...el.querySelectorAll('*')].forEach(ch => {
+          if (LIGHT_TEXT.has(window.getComputedStyle(ch).color)) {
+            darkFixes.push({ el: ch, prop: 'color', val: ch.style.color })
+            ch.style.color = '#1e293b'
+          }
+        })
+      }
+    })
+
+    await new Promise(r => setTimeout(r, 400))
+
     try {
-      const canvas = await html2canvas(mapRef.current, { backgroundColor: '#f8fafc', scale: 2 })
+      const scale = Math.min(2, Math.sqrt(120_000_000 / Math.max(fullW * fullH, 1)))
+      const canvas = await html2canvas(scrollEl, {
+        backgroundColor: '#f1f5f9',
+        scale,
+        useCORS: true,
+        logging: false,
+      })
       const link = document.createElement('a')
       link.download = 'otc-process-map.png'
       link.href = canvas.toDataURL('image/png')
       link.click()
     } catch (e) {
       console.error('Image export failed:', e)
+    } finally {
+      mainEl.style.overflow    = saved.mainOverflow
+      scrollEl.style.overflow  = saved.scrollOverflow
+      scrollEl.style.width     = saved.scrollWidth
+      scrollEl.style.height    = saved.scrollHeight
+      scrollEl.style.maxHeight = saved.scrollMaxHeight
+      stickyFixes.forEach(({ el, position, top, left }) => {
+        el.style.position = position
+        el.style.top      = top
+        el.style.left     = left
+      })
+      darkFixes.forEach(({ el, prop, val }) => { el.style[prop] = val })
     }
   }
 
