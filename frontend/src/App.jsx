@@ -68,57 +68,84 @@ export default function App() {
     if (!mapRef.current) return
     setPdfLoading(true)
 
-    const mainEl   = mapRef.current               // <main class="flex-1 overflow-hidden">
-    const scrollEl = mainEl.firstElementChild     // scroll container (overflow:auto, height:100%)
+    const mainEl   = mapRef.current
+    const scrollEl = mainEl.firstElementChild
 
-    // ── Pre-capture: remove ALL overflow clipping in the ancestor chain ──────
-    // Issue 1: <main> has Tailwind overflow-hidden — this clips the entire capture
-    //          to viewport height even after we expand scrollEl.
-    // Issue 2: scrollEl itself is overflow:auto — clips horizontally and vertically.
-    // Issue 3: position:sticky elements render solid black in html2canvas;
-    //          must also reset top/left so they don't offset after position changes.
+    // Measure TRUE content size BEFORE any DOM changes.
+    const fullW = scrollEl.scrollWidth
+    const fullH = scrollEl.scrollHeight
+
+    // ── Pre-capture DOM transforms ────────────────────────────────────────────
+    //
+    // Root cause of the empty-map problem: html2canvas only paints content that
+    // the browser has already rendered on-screen. For a large grid that extends
+    // far beyond the viewport, most columns/rows are never painted.
+    //
+    // Fix: set EXPLICIT pixel width + height on the scroll container so the
+    // browser is forced to render the entire grid (not just the visible slice),
+    // then remove all overflow clipping in the ancestor chain.
     const saved = {
       mainOverflow:    mainEl.style.overflow,
       scrollOverflow:  scrollEl.style.overflow,
+      scrollWidth:     scrollEl.style.width,
       scrollHeight:    scrollEl.style.height,
       scrollMaxHeight: scrollEl.style.maxHeight,
     }
-    mainEl.style.overflow    = 'visible'   // override overflow-hidden class
+    mainEl.style.overflow    = 'visible'      // override Tailwind overflow-hidden
     scrollEl.style.overflow  = 'visible'
-    scrollEl.style.height    = 'auto'
+    scrollEl.style.width     = fullW + 'px'   // force full-width render
+    scrollEl.style.height    = fullH + 'px'   // force full-height render
     scrollEl.style.maxHeight = 'none'
 
+    // Fix 1: position:sticky → renders solid black in html2canvas.
+    // Also reset top/left so elements don't shift to wrong coordinates.
     const stickyFixes = []
     scrollEl.querySelectorAll('*').forEach(el => {
       if (window.getComputedStyle(el).position === 'sticky') {
         stickyFixes.push({ el, position: el.style.position, top: el.style.top, left: el.style.left })
         el.style.position = 'relative'
-        el.style.top      = 'auto'    // prevent residual offset that causes black rendering
+        el.style.top      = 'auto'
         el.style.left     = 'auto'
       }
     })
 
-    // Let the browser fully reflow with the new layout before measuring.
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    // Fix 2: Dark-theme role-label / header cells (#1e293b ≈ black in PDF).
+    // Temporarily convert them to a light background with dark text so the
+    // "Responsible" role names are legible in the exported PDF.
+    const DARK_BG_RGB = 'rgb(30, 41, 59)'    // #1e293b
+    const LIGHT_TEXT  = new Set([             // near-white text colors used in dark cells
+      'rgb(226, 232, 240)',  // #e2e8f0
+      'rgb(148, 163, 184)',  // #94a3b8
+      'rgb(100, 116, 139)',  // #64748b
+      'rgb(241, 245, 249)',  // #f1f5f9
+    ])
+    const darkFixes = []
+    scrollEl.querySelectorAll('*').forEach(el => {
+      if (window.getComputedStyle(el).backgroundColor === DARK_BG_RGB) {
+        darkFixes.push({ el, prop: 'background', val: el.style.background })
+        el.style.background = '#dde3ed'  // light slate for label background
+
+        // Also darken any light-coloured text inside this cell
+        ;[el, ...el.querySelectorAll('*')].forEach(ch => {
+          if (LIGHT_TEXT.has(window.getComputedStyle(ch).color)) {
+            darkFixes.push({ el: ch, prop: 'color', val: ch.style.color })
+            ch.style.color = '#1e293b'
+          }
+        })
+      }
+    })
+
+    // Give the browser enough time to fully reflow the now-explicit-sized element.
+    await new Promise(r => setTimeout(r, 400))
 
     try {
-      const fullW = scrollEl.scrollWidth
-      const fullH = scrollEl.scrollHeight
-
-      // Scale down to stay within ~120 M-pixel browser canvas limit.
       const scale = Math.min(1.5, Math.sqrt(120_000_000 / Math.max(fullW * fullH, 1)))
 
       const canvas = await html2canvas(scrollEl, {
         backgroundColor: '#f1f5f9',
         scale,
-        // Explicitly pass full content dimensions so html2canvas renders
-        // everything, not just what fits in the current viewport.
-        width:        fullW,
-        height:       fullH,
-        windowWidth:  fullW,
-        windowHeight: fullH,
-        useCORS:  true,
-        logging:  false,
+        useCORS: true,
+        logging: false,
       })
 
       const imgData = canvas.toDataURL('image/jpeg', scale < 1 ? 0.80 : 0.88)
@@ -134,9 +161,10 @@ export default function App() {
       console.error('PDF export failed:', e)
       alert('PDF export failed — try collapsing some sections to reduce map size.')
     } finally {
-      // ── Restore DOM ──────────────────────────────────────────────────────
+      // ── Restore ALL DOM changes ───────────────────────────────────────────
       mainEl.style.overflow    = saved.mainOverflow
       scrollEl.style.overflow  = saved.scrollOverflow
+      scrollEl.style.width     = saved.scrollWidth
       scrollEl.style.height    = saved.scrollHeight
       scrollEl.style.maxHeight = saved.scrollMaxHeight
       stickyFixes.forEach(({ el, position, top, left }) => {
@@ -144,6 +172,7 @@ export default function App() {
         el.style.top      = top
         el.style.left     = left
       })
+      darkFixes.forEach(({ el, prop, val }) => { el.style[prop] = val })
       setPdfLoading(false)
     }
   }
