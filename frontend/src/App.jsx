@@ -67,48 +67,65 @@ export default function App() {
   async function downloadPDF() {
     if (!mapRef.current) return
     setPdfLoading(true)
+
+    const scrollEl = mapRef.current.firstElementChild
+
+    // ── Pre-capture DOM fixes ────────────────────────────────────────────────
+    // html2canvas has two known issues we must work around:
+    // 1. overflow:auto clips capture to the visible viewport — fix: set overflow:visible
+    // 2. position:sticky elements render solid black — fix: change to position:relative
+    const savedScroll = {
+      overflow:  scrollEl.style.overflow,
+      height:    scrollEl.style.height,
+      maxHeight: scrollEl.style.maxHeight,
+    }
+    scrollEl.style.overflow  = 'visible'
+    scrollEl.style.height    = 'auto'
+    scrollEl.style.maxHeight = 'none'
+
+    const stickyFixes = []
+    scrollEl.querySelectorAll('*').forEach(el => {
+      if (window.getComputedStyle(el).position === 'sticky') {
+        stickyFixes.push([el, el.style.position])
+        el.style.position = 'relative'
+      }
+    })
+
+    // Two animation frames — let the browser reflow before measuring.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+
     try {
-      const scrollEl = mapRef.current.firstElementChild
       const fullW = scrollEl.scrollWidth
       const fullH = scrollEl.scrollHeight
 
-      // Dynamically scale down so the canvas never exceeds ~120 million pixels,
-      // which is a safe threshold across all modern browsers. Large expanded maps
-      // would otherwise exceed the browser canvas memory limit and produce a
-      // corrupted/empty PDF.
-      const TARGET_PX = 120_000_000
-      const scale = fullW * fullH > 0
-        ? Math.min(1.5, Math.sqrt(TARGET_PX / (fullW * fullH)))
-        : 1.5
+      // Scale down to stay within ~120 M-pixel browser canvas limit.
+      const scale = Math.min(1.5, Math.sqrt(120_000_000 / Math.max(fullW * fullH, 1)))
 
       const canvas = await html2canvas(scrollEl, {
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#f1f5f9',
         scale,
-        width: fullW,
-        height: fullH,
-        windowWidth: fullW,
-        windowHeight: fullH,
         useCORS: true,
         logging: false,
       })
 
-      const imgData = canvas.toDataURL('image/jpeg', scale < 1.0 ? 0.80 : 0.88)
-      if (!imgData || imgData === 'data:,') throw new Error('Canvas capture was empty')
+      const imgData = canvas.toDataURL('image/jpeg', scale < 1 ? 0.80 : 0.88)
+      if (!imgData || imgData === 'data:,') throw new Error('Empty canvas')
 
-      const pxToPt = 72 / 96
-      const pdfW = fullW * pxToPt
-      const pdfH = fullH * pxToPt
-      const pdf = new jsPDF({
-        orientation: pdfW > pdfH ? 'l' : 'p',
-        unit: 'pt',
-        format: [pdfW, pdfH],
-      })
+      const pt = 72 / 96
+      const pdfW = fullW * pt
+      const pdfH = fullH * pt
+      const pdf = new jsPDF({ orientation: pdfW > pdfH ? 'l' : 'p', unit: 'pt', format: [pdfW, pdfH] })
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH)
       pdf.save('otc-process-map.pdf')
     } catch (e) {
       console.error('PDF export failed:', e)
-      alert('PDF export failed. If all processes are expanded the map may be too large — try collapsing some sections first, then export again.')
+      alert('PDF export failed — try collapsing some sections to reduce map size.')
     } finally {
+      // ── Restore DOM ─────────────────────────────────────────────────────────
+      scrollEl.style.overflow  = savedScroll.overflow
+      scrollEl.style.height    = savedScroll.height
+      scrollEl.style.maxHeight = savedScroll.maxHeight
+      stickyFixes.forEach(([el, p]) => { el.style.position = p })
       setPdfLoading(false)
     }
   }
