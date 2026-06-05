@@ -12,7 +12,7 @@ const RACI_LEGEND = [
   { short: 'R', label: 'Responsible', dot: 'bg-emerald-400', text: 'text-emerald-300', ring: 'ring-emerald-600/40', bg: 'bg-emerald-900/30' },
   { short: 'A', label: 'Accountable', dot: 'bg-slate-400',   text: 'text-slate-300',   ring: 'ring-slate-600/40',   bg: 'bg-slate-800/60'   },
   { short: 'I', label: 'Informed',    dot: 'bg-slate-500',   text: 'text-slate-400',   ring: 'ring-slate-600/40',   bg: 'bg-slate-800/40'   },
-  { short: 'C', label: 'Consulted',   dot: 'bg-sky-400',     text: 'text-sky-300',     ring: 'ring-sky-600/40',     bg: 'bg-sky-900/30'     },
+  { short: 'C', label: 'Contributing', dot: 'bg-sky-400',     text: 'text-sky-300',     ring: 'ring-sky-600/40',     bg: 'bg-sky-900/30'     },
 ]
 
 export default function App() {
@@ -184,7 +184,7 @@ export default function App() {
               <p className="text-xs text-slate-500">
                 Expandable process map · L1 → L4 · RACI · Systems · Handoffs
               </p>
-              <p className="text-xs text-teal-400/80 mt-0.5">Swimlanes are at L3 level</p>
+              <p className="text-xs text-teal-400/80 mt-0.5 font-semibold tracking-wide">SWIMLANES ARE SHOWN AT L3 LEVEL</p>
             </div>
           </div>
 

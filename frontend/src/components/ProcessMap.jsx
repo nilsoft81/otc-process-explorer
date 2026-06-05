@@ -83,7 +83,7 @@ function NodeFooter({ node, textC, mutedC }) {
         <div style={{display:'flex',flexDirection:'column',gap:2}}>
           {pill('R:', raci.r)}
           {pill('A:', raci.a)}
-          {pill('I:', raci.i ?? raci.c)}
+          {pill('C:', raci.i ?? raci.c)}
         </div>
       )}
       {hasOuts && decision_outcomes.split('|').map((o,idx)=>(
@@ -501,12 +501,8 @@ export default function ProcessMap({ processes }) {
 
         targets.forEach((t, ti) => {
           const { oi, out, tr } = t
-          // Routing convention: YES exits bottom vertex, NO exits side vertex.
-          // Read YES/NO from the outcome text so order in Excel doesn't matter.
           const isYes = out.trim().toLowerCase().startsWith('yes')
           const isBackward = checkBackward(tr)
-          // YES exits bottom unless the target is actually behind the diamond (backward),
-          // in which case it falls through to side-exit routing like NO.
           const fromBottom = isYes && !isBackward
 
           let x1 = fromBottom ? fr.left + DIAG / 2 : fr.right
@@ -515,76 +511,77 @@ export default function ProcessMap({ processes }) {
 
           let x2, y2, isArch, aboveY, belowY, routeRight, routeLeft, arrowDir
 
+          // Separate routing corridors for YES vs NO so their paths never overlap.
+          // YES travels OUTSIDE the source cell (in the inter-column gap):
+          //   rightCorridor = srcCellRight + 8  (in adjacent cell's left padding)
+          //   leftCorridor  = srcCellLeft  - 6  (in adjacent cell's right padding)
+          // NO travels INSIDE the source cell's own padding (between cell edge and diamond):
+          //   rightCorridor = srcCellRight - 5  (in source cell's right padding, fr.right+5)
+          //   leftCorridor  = srcCellLeft  + 4  (in source cell's left padding, fr.left-6)
+          // Both zones are free of box content so neither path can cut through a box.
+          const rRight = isYes ? srcCellRight + 8  : srcCellRight - 5
+          const rLeft  = isYes ? srcCellLeft  - 6  : srcCellLeft  + 4
+          // YES side-exits start 8px above the diamond vertex so YES and NO never share
+          // an identical start point when both are routed to the same side.
+          const sideY  = isYes ? fr.cy - 8 : fr.cy
+
           if (fromBottom) {
-            // Bottom-exit — but redirect if target is far-right column (use arch) or
-            // L3 decision going to a different swimlane row (use LEFT exit).
             const isL3Dec = decNode.seq.split('.').length === 3
             const crossesRow = isL3Dec && srcCellRect != null &&
               (tr.top > srcCellBottom + 5 || tr.bottom < srcCellTop - 5)
             if (tr.left > fr.right) {
-              // Target in a further-right column: override to RIGHT exit.
-              // Only arch if non-adjacent (intermediate columns exist to avoid crossing).
-              x1 = fr.right; y1 = fr.cy; usesBottomExit = false
+              x1 = fr.right; y1 = sideY; usesBottomExit = false
               x2 = tr.left; y2 = tr.cy; arrowDir = 'right'
               if (tr.left > srcCellRight + 40) {
-                isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12
+                isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 8
               }
             } else if (crossesRow) {
-              x1 = fr.left; y1 = fr.cy; usesBottomExit = false
+              x1 = fr.left; y1 = sideY; usesBottomExit = false
               x2 = tr.left; y2 = tr.cy
-              routeLeft = srcCellLeft - 6; arrowDir = 'right'
+              routeLeft = rLeft; arrowDir = 'right'
             } else {
-              // Route down the right column gap so the arrow never cuts through
-              // intermediate boxes that sit between the diamond and the target.
               x2 = tr.right; y2 = tr.cy
-              routeRight = srcCellRight + 8; arrowDir = 'left'
+              routeRight = rRight; arrowDir = 'left'
             }
           } else if (isBackward) {
             const sameColBackward = Math.abs(tr.left - fr.left) < DIAG
             if (sameColBackward) {
-              // Same column but above: if partner target is far-right (arch), force LEFT exit.
-              // Otherwise: seq-forward step→LEFT exit, true loop-back→RIGHT exit
               const otherTarget = targets.find((_, i) => i !== ti)
               const otherFarRight = otherTarget && otherTarget.tr.left > fr.right
               if (otherFarRight || seqAfter(t.targetSeq, decNode.seq)) {
-                x1 = fr.left; y1 = fr.cy
+                x1 = fr.left; y1 = sideY
                 x2 = tr.left; y2 = tr.cy
-                routeLeft = srcCellLeft - 6; arrowDir = 'right'
+                routeLeft = rLeft; arrowDir = 'right'
               } else {
-                x1 = fr.right; y1 = fr.cy
+                x1 = fr.right; y1 = sideY
                 x2 = tr.right; y2 = tr.cy
-                routeRight = srcCellRight + 6; arrowDir = 'left'
+                routeRight = rRight; arrowDir = 'left'
               }
             } else {
-              // Different column to the left: exit right → below all rows → left → arrive right side
               x2 = tr.right; y2 = tr.cy
-              belowY = Math.max(srcCellBottom, tr.bottom) + 16
-              routeRight = srcCellRight + 6; arrowDir = 'left'
+              belowY = isYes
+                ? Math.max(srcCellBottom, tr.bottom) + 6
+                : Math.max(srcCellBottom, tr.bottom) + 10
+              routeRight = rRight; arrowDir = 'left'
             }
           } else if (tr.left > fr.right) {
-            // Forward right-exit. Only arch if non-adjacent (needs to clear intermediate columns).
-            // For adjacent columns, a direct path is clean and avoids the up-then-down zigzag.
             x2 = tr.left; y2 = tr.cy; arrowDir = 'right'
             if (tr.left > srcCellRight + 40) {
-              isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 12
+              isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 22
             }
           } else if (tr.top > fr.bottom) {
-            // Non-bottom target also below in same column.
-            // L4 decisions (inside expanded L3): exit LEFT (left of expanded box, clean).
-            // L3 decisions (column-level): exit RIGHT (open space to the right of the column).
             const isL4Dec = decNode.seq.split('.').length === 4
             if (isL4Dec) {
               x1 = fr.left; y1 = fr.cy
               x2 = tr.left; y2 = tr.cy
-              routeLeft = srcCellLeft - 6; arrowDir = 'right'
+              routeLeft = rLeft; arrowDir = 'right'
             } else {
               x2 = tr.right; y2 = tr.cy
-              routeRight = srcCellRight + 8; arrowDir = 'left'
+              routeRight = rRight; arrowDir = 'left'
             }
           } else {
-            // Right-exit same/nearby column: right to gap → down → arrive right side
             x2 = tr.right; y2 = tr.cy
-            routeRight = srcCellRight + 6; arrowDir = 'left'
+            routeRight = rRight; arrowDir = 'left'
           }
 
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
