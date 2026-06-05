@@ -20,6 +20,7 @@ export default function App() {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
   const [page, setPage]           = useState('map') // 'map' | 'upload'
+  const [pdfLoading, setPdfLoading] = useState(false)
   const mapRef = useRef(null)
 
   const fetchProcesses = useCallback(() => {
@@ -65,25 +66,38 @@ export default function App() {
 
   async function downloadPDF() {
     if (!mapRef.current) return
+    setPdfLoading(true)
     try {
-      // Capture the full scrollable content, not just the visible viewport
       const scrollEl = mapRef.current.firstElementChild
       const fullW = scrollEl.scrollWidth
       const fullH = scrollEl.scrollHeight
+
+      // Dynamically scale down so the canvas never exceeds ~120 million pixels,
+      // which is a safe threshold across all modern browsers. Large expanded maps
+      // would otherwise exceed the browser canvas memory limit and produce a
+      // corrupted/empty PDF.
+      const TARGET_PX = 120_000_000
+      const scale = fullW * fullH > 0
+        ? Math.min(1.5, Math.sqrt(TARGET_PX / (fullW * fullH)))
+        : 1.5
+
       const canvas = await html2canvas(scrollEl, {
         backgroundColor: '#f8fafc',
-        scale: 1.5,
+        scale,
         width: fullW,
         height: fullH,
         windowWidth: fullW,
         windowHeight: fullH,
         useCORS: true,
+        logging: false,
       })
-      const imgData = canvas.toDataURL('image/jpeg', 0.88)
-      // 1px at 96 DPI = 0.75pt; divide by scale to get element pixels
+
+      const imgData = canvas.toDataURL('image/jpeg', scale < 1.0 ? 0.80 : 0.88)
+      if (!imgData || imgData === 'data:,') throw new Error('Canvas capture was empty')
+
       const pxToPt = 72 / 96
-      const pdfW = (canvas.width  / 1.5) * pxToPt
-      const pdfH = (canvas.height / 1.5) * pxToPt
+      const pdfW = fullW * pxToPt
+      const pdfH = fullH * pxToPt
       const pdf = new jsPDF({
         orientation: pdfW > pdfH ? 'l' : 'p',
         unit: 'pt',
@@ -93,6 +107,9 @@ export default function App() {
       pdf.save('otc-process-map.pdf')
     } catch (e) {
       console.error('PDF export failed:', e)
+      alert('PDF export failed. If all processes are expanded the map may be too large — try collapsing some sections first, then export again.')
+    } finally {
+      setPdfLoading(false)
     }
   }
 
@@ -195,10 +212,12 @@ export default function App() {
             {/* Download PDF */}
             <button
               onClick={downloadPDF}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-300 text-xs font-medium hover:bg-rose-500/20 transition-colors flex-shrink-0"
+              disabled={pdfLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-300 text-xs font-medium hover:bg-rose-500/20 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download size={13} />
-              Download PDF
+              {pdfLoading
+                ? <><RefreshCw size={13} className="animate-spin" />Generating…</>
+                : <><Download size={13} />Download PDF</>}
             </button>
 
             {/* RACI legend */}
