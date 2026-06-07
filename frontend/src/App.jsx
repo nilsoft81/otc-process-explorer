@@ -15,12 +15,121 @@ const RACI_LEGEND = [
   { short: 'C', label: 'Contributing', dot: 'bg-sky-400',     text: 'text-sky-300',     ring: 'ring-sky-600/40',     bg: 'bg-sky-900/30'     },
 ]
 
+// ── Tile-by-tile full-map capture ─────────────────────────────────────────────
+// html2canvas only renders what the browser has painted on-screen.  For a large
+// grid most columns/rows are outside the viewport and never painted, so a single
+// html2canvas call produces an empty / partial image.
+//
+// The reliable fix: scroll the container to every tile position so the browser
+// paints that region, capture the visible viewport, then stitch the tiles into a
+// single master canvas.
+//
+// Sticky layout constants (must match ProcessMap.jsx):
+const ROLE_W = 176  // sticky-left role label column width  (px)
+const HEAD_H = 44   // sticky-top  header row height        (px)
+
+// Dark-theme colours that need to be lightened so role labels are readable in exports
+const DARK_BG_RGB  = 'rgb(30, 41, 59)'       // #1e293b — role labels / corner cell
+const LIGHT_TEXTS  = new Set([
+  'rgb(226, 232, 240)', 'rgb(148, 163, 184)',
+  'rgb(100, 116, 139)', 'rgb(241, 245, 249)',
+])
+
+async function captureTiledCanvas(scrollEl, scale, onProgress) {
+  const fullW   = scrollEl.scrollWidth
+  const fullH   = scrollEl.scrollHeight
+  const vpW     = scrollEl.clientWidth    // visible viewport width  (no scrollbar)
+  const vpH     = scrollEl.clientHeight   // visible viewport height
+  const colStep = Math.max(vpW - ROLE_W, 1)
+  const rowStep = Math.max(vpH - HEAD_H,  1)
+
+  // Build deduplicated, sorted scroll-position lists that guarantee full coverage
+  const makePositions = (full, vp, step) => {
+    const set = new Set([0])
+    for (let p = step; p < full - vp; p += step) set.add(p)
+    if (full > vp) set.add(full - vp)   // always include last position
+    return [...set].sort((a, b) => a - b)
+  }
+  const xs = makePositions(fullW, vpW, colStep)
+  const ys = makePositions(fullH, vpH, rowStep)
+
+  // Create master canvas pre-filled with the map background colour
+  const master = document.createElement('canvas')
+  master.width  = Math.round(fullW * scale)
+  master.height = Math.round(fullH * scale)
+  const ctx = master.getContext('2d')
+  ctx.fillStyle = '#f1f5f9'
+  ctx.fillRect(0, 0, master.width, master.height)
+
+  const total = xs.length * ys.length
+  let done = 0
+
+  for (let ri = 0; ri < ys.length; ri++) {
+    for (let ci = 0; ci < xs.length; ci++) {
+      scrollEl.scrollLeft = xs[ci]
+      scrollEl.scrollTop  = ys[ri]
+      // Two rAF cycles so the browser finishes painting before we capture
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+      // Read back the ACTUAL scroll position (browser may clamp near edges)
+      const sx = scrollEl.scrollLeft
+      const sy = scrollEl.scrollTop
+
+      const tile = await html2canvas(scrollEl, {
+        backgroundColor: '#f1f5f9',
+        scale,
+        useCORS: true,
+        logging: false,
+      })
+
+      const tW  = tile.width
+      const tH  = tile.height
+      const sRW = Math.round(ROLE_W * scale)   // role-label width in tile pixels
+      const sHH = Math.round(HEAD_H * scale)   // header height in tile pixels
+      const cW  = Math.max(0, tW - sRW)        // non-sticky content width
+      const cH  = Math.max(0, tH - sHH)        // non-sticky content height
+
+      // 1. Non-sticky content → master at (ROLE_W + sx, HEAD_H + sy)
+      if (cW > 0 && cH > 0) {
+        ctx.drawImage(tile, sRW, sHH, cW, cH,
+          Math.round((ROLE_W + sx) * scale),
+          Math.round((HEAD_H  + sy) * scale),
+          cW, cH)
+      }
+      // 2. Role-label column (sticky left) — extract from every first-col tile
+      if (ci === 0 && sRW > 0 && cH > 0) {
+        ctx.drawImage(tile, 0, sHH, sRW, cH,
+          0,
+          Math.round((HEAD_H + sy) * scale),
+          sRW, cH)
+      }
+      // 3. Header row (sticky top) — extract from every first-row tile
+      if (ri === 0 && cW > 0 && sHH > 0) {
+        ctx.drawImage(tile, sRW, 0, cW, sHH,
+          Math.round((ROLE_W + sx) * scale),
+          0,
+          cW, sHH)
+      }
+      // 4. Corner cell — once, from tile (0, 0)
+      if (ri === 0 && ci === 0 && sRW > 0 && sHH > 0) {
+        ctx.drawImage(tile, 0, 0, sRW, sHH, 0, 0, sRW, sHH)
+      }
+
+      done++
+      if (onProgress) onProgress(done, total)
+    }
+  }
+
+  return master
+}
+
 export default function App() {
   const [processes, setProcesses] = useState(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
   const [page, setPage]           = useState('map') // 'map' | 'upload'
-  const [pdfLoading, setPdfLoading] = useState(false)
+  const [exportStatus,   setExportStatus]   = useState('') // '' | 'pdf' | 'img'
+  const [exportProgress, setExportProgress] = useState('') // e.g. '4 / 20 tiles'
   const mapRef = useRef(null)
 
   const fetchProcesses = useCallback(() => {
@@ -51,171 +160,77 @@ export default function App() {
     URL.revokeObjectURL(link.href)
   }
 
-  async function downloadImage() {
-    if (!mapRef.current) return
-    const mainEl   = mapRef.current
-    const scrollEl = mainEl.firstElementChild
-
-    const fullW = scrollEl.scrollWidth
-    const fullH = scrollEl.scrollHeight
-
-    const saved = {
-      mainOverflow:    mainEl.style.overflow,
-      scrollOverflow:  scrollEl.style.overflow,
-      scrollWidth:     scrollEl.style.width,
-      scrollHeight:    scrollEl.style.height,
-      scrollMaxHeight: scrollEl.style.maxHeight,
-    }
-    mainEl.style.overflow    = 'visible'
-    scrollEl.style.overflow  = 'visible'
-    scrollEl.style.width     = fullW + 'px'
-    scrollEl.style.height    = fullH + 'px'
-    scrollEl.style.maxHeight = 'none'
-
-    const stickyFixes = []
-    scrollEl.querySelectorAll('*').forEach(el => {
-      if (window.getComputedStyle(el).position === 'sticky') {
-        stickyFixes.push({ el, position: el.style.position, top: el.style.top, left: el.style.left })
-        el.style.position = 'relative'
-        el.style.top      = 'auto'
-        el.style.left     = 'auto'
-      }
-    })
-
-    const DARK_BG_RGB = 'rgb(30, 41, 59)'
-    const LIGHT_TEXT  = new Set(['rgb(226, 232, 240)', 'rgb(148, 163, 184)', 'rgb(100, 116, 139)', 'rgb(241, 245, 249)'])
-    const darkFixes = []
+  // ── Apply / restore light-theme overrides for dark role-label cells ─────────
+  function applyDarkFixes(scrollEl) {
+    const fixes = []
     scrollEl.querySelectorAll('*').forEach(el => {
       if (window.getComputedStyle(el).backgroundColor === DARK_BG_RGB) {
-        darkFixes.push({ el, prop: 'background', val: el.style.background })
+        fixes.push({ el, prop: 'background', val: el.style.background })
         el.style.background = '#dde3ed'
         ;[el, ...el.querySelectorAll('*')].forEach(ch => {
-          if (LIGHT_TEXT.has(window.getComputedStyle(ch).color)) {
-            darkFixes.push({ el: ch, prop: 'color', val: ch.style.color })
+          if (LIGHT_TEXTS.has(window.getComputedStyle(ch).color)) {
+            fixes.push({ el: ch, prop: 'color', val: ch.style.color })
             ch.style.color = '#1e293b'
           }
         })
       }
     })
+    return fixes
+  }
 
-    await new Promise(r => setTimeout(r, 400))
-
+  async function downloadImage() {
+    if (!mapRef.current) return
+    setExportStatus('img')
+    setExportProgress('0 / ?')
+    const scrollEl  = mapRef.current.firstElementChild
+    const savedLeft = scrollEl.scrollLeft
+    const savedTop  = scrollEl.scrollTop
+    const darkFixes = applyDarkFixes(scrollEl)
     try {
-      const scale = Math.min(2, Math.sqrt(120_000_000 / Math.max(fullW * fullH, 1)))
-      const canvas = await html2canvas(scrollEl, {
-        backgroundColor: '#f1f5f9',
-        scale,
-        useCORS: true,
-        logging: false,
+      const fullW = scrollEl.scrollWidth
+      const fullH = scrollEl.scrollHeight
+      const scale = Math.min(1.5, Math.sqrt(100_000_000 / Math.max(fullW * fullH, 1)))
+      const master = await captureTiledCanvas(scrollEl, scale, (done, total) => {
+        setExportProgress(`${done} / ${total} tiles`)
       })
+      scrollEl.scrollLeft = savedLeft
+      scrollEl.scrollTop  = savedTop
       const link = document.createElement('a')
       link.download = 'otc-process-map.png'
-      link.href = canvas.toDataURL('image/png')
+      link.href = master.toDataURL('image/png')
       link.click()
     } catch (e) {
       console.error('Image export failed:', e)
+      alert('Image export failed.')
     } finally {
-      mainEl.style.overflow    = saved.mainOverflow
-      scrollEl.style.overflow  = saved.scrollOverflow
-      scrollEl.style.width     = saved.scrollWidth
-      scrollEl.style.height    = saved.scrollHeight
-      scrollEl.style.maxHeight = saved.scrollMaxHeight
-      stickyFixes.forEach(({ el, position, top, left }) => {
-        el.style.position = position
-        el.style.top      = top
-        el.style.left     = left
-      })
+      scrollEl.scrollLeft = savedLeft
+      scrollEl.scrollTop  = savedTop
       darkFixes.forEach(({ el, prop, val }) => { el.style[prop] = val })
+      setExportStatus('')
+      setExportProgress('')
     }
   }
 
   async function downloadPDF() {
     if (!mapRef.current) return
-    setPdfLoading(true)
-
-    const mainEl   = mapRef.current
-    const scrollEl = mainEl.firstElementChild
-
-    // Measure TRUE content size BEFORE any DOM changes.
-    const fullW = scrollEl.scrollWidth
-    const fullH = scrollEl.scrollHeight
-
-    // ── Pre-capture DOM transforms ────────────────────────────────────────────
-    //
-    // Root cause of the empty-map problem: html2canvas only paints content that
-    // the browser has already rendered on-screen. For a large grid that extends
-    // far beyond the viewport, most columns/rows are never painted.
-    //
-    // Fix: set EXPLICIT pixel width + height on the scroll container so the
-    // browser is forced to render the entire grid (not just the visible slice),
-    // then remove all overflow clipping in the ancestor chain.
-    const saved = {
-      mainOverflow:    mainEl.style.overflow,
-      scrollOverflow:  scrollEl.style.overflow,
-      scrollWidth:     scrollEl.style.width,
-      scrollHeight:    scrollEl.style.height,
-      scrollMaxHeight: scrollEl.style.maxHeight,
-    }
-    mainEl.style.overflow    = 'visible'      // override Tailwind overflow-hidden
-    scrollEl.style.overflow  = 'visible'
-    scrollEl.style.width     = fullW + 'px'   // force full-width render
-    scrollEl.style.height    = fullH + 'px'   // force full-height render
-    scrollEl.style.maxHeight = 'none'
-
-    // Fix 1: position:sticky → renders solid black in html2canvas.
-    // Also reset top/left so elements don't shift to wrong coordinates.
-    const stickyFixes = []
-    scrollEl.querySelectorAll('*').forEach(el => {
-      if (window.getComputedStyle(el).position === 'sticky') {
-        stickyFixes.push({ el, position: el.style.position, top: el.style.top, left: el.style.left })
-        el.style.position = 'relative'
-        el.style.top      = 'auto'
-        el.style.left     = 'auto'
-      }
-    })
-
-    // Fix 2: Dark-theme role-label / header cells (#1e293b ≈ black in PDF).
-    // Temporarily convert them to a light background with dark text so the
-    // "Responsible" role names are legible in the exported PDF.
-    const DARK_BG_RGB = 'rgb(30, 41, 59)'    // #1e293b
-    const LIGHT_TEXT  = new Set([             // near-white text colors used in dark cells
-      'rgb(226, 232, 240)',  // #e2e8f0
-      'rgb(148, 163, 184)',  // #94a3b8
-      'rgb(100, 116, 139)',  // #64748b
-      'rgb(241, 245, 249)',  // #f1f5f9
-    ])
-    const darkFixes = []
-    scrollEl.querySelectorAll('*').forEach(el => {
-      if (window.getComputedStyle(el).backgroundColor === DARK_BG_RGB) {
-        darkFixes.push({ el, prop: 'background', val: el.style.background })
-        el.style.background = '#dde3ed'  // light slate for label background
-
-        // Also darken any light-coloured text inside this cell
-        ;[el, ...el.querySelectorAll('*')].forEach(ch => {
-          if (LIGHT_TEXT.has(window.getComputedStyle(ch).color)) {
-            darkFixes.push({ el: ch, prop: 'color', val: ch.style.color })
-            ch.style.color = '#1e293b'
-          }
-        })
-      }
-    })
-
-    // Give the browser enough time to fully reflow the now-explicit-sized element.
-    await new Promise(r => setTimeout(r, 400))
-
+    setExportStatus('pdf')
+    setExportProgress('0 / ?')
+    const scrollEl  = mapRef.current.firstElementChild
+    const savedLeft = scrollEl.scrollLeft
+    const savedTop  = scrollEl.scrollTop
+    const darkFixes = applyDarkFixes(scrollEl)
     try {
-      const scale = Math.min(1.5, Math.sqrt(120_000_000 / Math.max(fullW * fullH, 1)))
-
-      const canvas = await html2canvas(scrollEl, {
-        backgroundColor: '#f1f5f9',
-        scale,
-        useCORS: true,
-        logging: false,
+      const fullW = scrollEl.scrollWidth
+      const fullH = scrollEl.scrollHeight
+      // Scale to keep master canvas under 100 M pixels
+      const scale = Math.min(1.0, Math.sqrt(100_000_000 / Math.max(fullW * fullH, 1)))
+      const master = await captureTiledCanvas(scrollEl, scale, (done, total) => {
+        setExportProgress(`${done} / ${total} tiles`)
       })
-
-      const imgData = canvas.toDataURL('image/jpeg', scale < 1 ? 0.80 : 0.88)
+      scrollEl.scrollLeft = savedLeft
+      scrollEl.scrollTop  = savedTop
+      const imgData = master.toDataURL('image/jpeg', 0.88)
       if (!imgData || imgData === 'data:,') throw new Error('Empty canvas')
-
       const pt   = 72 / 96
       const pdfW = fullW * pt
       const pdfH = fullH * pt
@@ -224,21 +239,13 @@ export default function App() {
       pdf.save('otc-process-map.pdf')
     } catch (e) {
       console.error('PDF export failed:', e)
-      alert('PDF export failed — try collapsing some sections to reduce map size.')
+      alert('PDF export failed.')
     } finally {
-      // ── Restore ALL DOM changes ───────────────────────────────────────────
-      mainEl.style.overflow    = saved.mainOverflow
-      scrollEl.style.overflow  = saved.scrollOverflow
-      scrollEl.style.width     = saved.scrollWidth
-      scrollEl.style.height    = saved.scrollHeight
-      scrollEl.style.maxHeight = saved.scrollMaxHeight
-      stickyFixes.forEach(({ el, position, top, left }) => {
-        el.style.position = position
-        el.style.top      = top
-        el.style.left     = left
-      })
+      scrollEl.scrollLeft = savedLeft
+      scrollEl.scrollTop  = savedTop
       darkFixes.forEach(({ el, prop, val }) => { el.style[prop] = val })
-      setPdfLoading(false)
+      setExportStatus('')
+      setExportProgress('')
     }
   }
 
@@ -332,20 +339,22 @@ export default function App() {
             {/* Download Image */}
             <button
               onClick={downloadImage}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-300 text-xs font-medium hover:bg-violet-500/20 transition-colors flex-shrink-0"
+              disabled={!!exportStatus}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-300 text-xs font-medium hover:bg-violet-500/20 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Image size={13} />
-              Download Image
+              {exportStatus === 'img'
+                ? <><RefreshCw size={13} className="animate-spin" />{exportProgress || 'Capturing…'}</>
+                : <><Image size={13} />Download Image</>}
             </button>
 
             {/* Download PDF */}
             <button
               onClick={downloadPDF}
-              disabled={pdfLoading}
+              disabled={!!exportStatus}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-300 text-xs font-medium hover:bg-rose-500/20 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {pdfLoading
-                ? <><RefreshCw size={13} className="animate-spin" />Generating…</>
+              {exportStatus === 'pdf'
+                ? <><RefreshCw size={13} className="animate-spin" />{exportProgress || 'Capturing…'}</>
                 : <><Download size={13} />Download PDF</>}
             </button>
 
