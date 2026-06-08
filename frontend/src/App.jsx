@@ -222,19 +222,29 @@ export default function App() {
     try {
       const fullW = scrollEl.scrollWidth
       const fullH = scrollEl.scrollHeight
-      // Scale to keep master canvas under 100 M pixels
-      const scale = Math.min(1.0, Math.sqrt(100_000_000 / Math.max(fullW * fullH, 1)))
+
+      // Use 150 M-pixel cap for better resolution than the old 100 M limit.
+      const scale = Math.min(1.0, Math.sqrt(150_000_000 / Math.max(fullW * fullH, 1)))
       const master = await captureTiledCanvas(scrollEl, scale, (done, total) => {
         setExportProgress(`${done} / ${total} tiles`)
       })
       scrollEl.scrollLeft = savedLeft
       scrollEl.scrollTop  = savedTop
+
       const imgData = master.toDataURL('image/jpeg', 0.88)
       if (!imgData || imgData === 'data:,') throw new Error('Empty canvas')
-      const pt   = 72 / 96
-      const pdfW = fullW * pt
-      const pdfH = fullH * pt
-      const pdf  = new jsPDF({ orientation: pdfW > pdfH ? 'l' : 'p', unit: 'pt', format: [pdfW, pdfH] })
+
+      // PDF page dimensions: use the master canvas pixel size as PDF points (1 px = 1 pt).
+      // This gives the maximum possible resolution within the canvas.
+      // Cap both dimensions to 14 000 pt (just below the 14 400 pt PDF-spec hard limit)
+      // so all viewers render the complete page without clipping.
+      const MAX_PT   = 14000
+      const rawPdfW  = master.width
+      const rawPdfH  = master.height
+      const shrink   = Math.min(1, MAX_PT / Math.max(rawPdfW, rawPdfH))
+      const pdfW     = Math.round(rawPdfW * shrink)
+      const pdfH     = Math.round(rawPdfH * shrink)
+      const pdf = new jsPDF({ orientation: pdfW > pdfH ? 'l' : 'p', unit: 'pt', format: [pdfW, pdfH] })
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH)
       pdf.save('otc-process-map.pdf')
     } catch (e) {
