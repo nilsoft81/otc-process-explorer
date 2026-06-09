@@ -35,7 +35,7 @@ const LIGHT_TEXTS  = new Set([
   'rgb(100, 116, 139)', 'rgb(241, 245, 249)',
 ])
 
-async function captureTiledCanvas(scrollEl, scale, onProgress) {
+async function captureTiledCanvas(scrollEl, scale, onProgress, preCapture) {
   const fullW   = scrollEl.scrollWidth
   const fullH   = scrollEl.scrollHeight
   const vpW     = scrollEl.clientWidth    // visible viewport width  (no scrollbar)
@@ -74,6 +74,10 @@ async function captureTiledCanvas(scrollEl, scale, onProgress) {
       // Read back the ACTUAL scroll position (browser may clamp near edges)
       const sx = scrollEl.scrollLeft
       const sy = scrollEl.scrollTop
+
+      // Re-apply any pre-capture DOM overrides (e.g. light-theme fixes) IMMEDIATELY
+      // before html2canvas so React re-renders from onProgress cannot have reset them.
+      if (preCapture) preCapture()
 
       const tile = await html2canvas(scrollEl, {
         backgroundColor: '#f1f5f9',
@@ -160,39 +164,56 @@ export default function App() {
     URL.revokeObjectURL(link.href)
   }
 
-  // ── Apply / restore light-theme overrides for dark role-label cells ─────────
-  function applyDarkFixes(scrollEl) {
-    const fixes = []
+  // ── Build per-tile light-theme fix functions ─────────────────────────────────
+  // The tiling loop calls setExportProgress() which triggers React re-renders.
+  // React re-renders reset any inline styles we set (e.g. role-label background).
+  // Fix: scan dark elements ONCE, build fast applyLight / restoreLight functions,
+  // then pass applyLight as preCapture so it runs just before each html2canvas call
+  // (html2canvas reads the DOM synchronously, before any async React re-render).
+  function buildDarkFixes(scrollEl) {
+    const entries = []
     scrollEl.querySelectorAll('*').forEach(el => {
       if (window.getComputedStyle(el).backgroundColor === DARK_BG_RGB) {
-        fixes.push({ el, prop: 'background', val: el.style.background })
-        el.style.background = '#dde3ed'
+        const children = []
+        const origColors = []
         ;[el, ...el.querySelectorAll('*')].forEach(ch => {
           if (LIGHT_TEXTS.has(window.getComputedStyle(ch).color)) {
-            fixes.push({ el: ch, prop: 'color', val: ch.style.color })
-            ch.style.color = '#1e293b'
+            children.push(ch)
+            origColors.push(ch.style.color)
           }
         })
+        entries.push({ el, origBg: el.style.background, children, origColors })
       }
     })
-    return fixes
+    const applyLight = () => entries.forEach(({ el, children }) => {
+      el.style.background = '#dde3ed'
+      children.forEach(ch => { ch.style.color = '#1e293b' })
+    })
+    const restoreDark = () => entries.forEach(({ el, origBg, children, origColors }) => {
+      el.style.background = origBg
+      children.forEach((ch, i) => { ch.style.color = origColors[i] })
+    })
+    return { applyLight, restoreDark }
   }
 
   async function downloadImage() {
     if (!mapRef.current) return
     setExportStatus('img')
     setExportProgress('0 / ?')
+    // Wait for React to flush the status update re-render before we modify the DOM
+    await new Promise(r => setTimeout(r, 60))
     const scrollEl  = mapRef.current.firstElementChild
     const savedLeft = scrollEl.scrollLeft
     const savedTop  = scrollEl.scrollTop
-    const darkFixes = applyDarkFixes(scrollEl)
+    const { applyLight, restoreDark } = buildDarkFixes(scrollEl)
+    applyLight()
     try {
       const fullW = scrollEl.scrollWidth
       const fullH = scrollEl.scrollHeight
       const scale = Math.min(1.5, Math.sqrt(100_000_000 / Math.max(fullW * fullH, 1)))
       const master = await captureTiledCanvas(scrollEl, scale, (done, total) => {
         setExportProgress(`${done} / ${total} tiles`)
-      })
+      }, applyLight)   // re-apply before each tile in case React reset the styles
       scrollEl.scrollLeft = savedLeft
       scrollEl.scrollTop  = savedTop
       const link = document.createElement('a')
@@ -205,7 +226,7 @@ export default function App() {
     } finally {
       scrollEl.scrollLeft = savedLeft
       scrollEl.scrollTop  = savedTop
-      darkFixes.forEach(({ el, prop, val }) => { el.style[prop] = val })
+      restoreDark()
       setExportStatus('')
       setExportProgress('')
     }
@@ -215,10 +236,13 @@ export default function App() {
     if (!mapRef.current) return
     setExportStatus('pdf')
     setExportProgress('0 / ?')
+    // Wait for React to flush the status update re-render before we modify the DOM
+    await new Promise(r => setTimeout(r, 60))
     const scrollEl  = mapRef.current.firstElementChild
     const savedLeft = scrollEl.scrollLeft
     const savedTop  = scrollEl.scrollTop
-    const darkFixes = applyDarkFixes(scrollEl)
+    const { applyLight, restoreDark } = buildDarkFixes(scrollEl)
+    applyLight()
     try {
       const fullW = scrollEl.scrollWidth
       const fullH = scrollEl.scrollHeight
@@ -227,7 +251,7 @@ export default function App() {
       const scale = Math.min(1.0, Math.sqrt(150_000_000 / Math.max(fullW * fullH, 1)))
       const master = await captureTiledCanvas(scrollEl, scale, (done, total) => {
         setExportProgress(`${done} / ${total} tiles`)
-      })
+      }, applyLight)   // re-apply before each tile in case React reset the styles
       scrollEl.scrollLeft = savedLeft
       scrollEl.scrollTop  = savedTop
 
@@ -253,7 +277,7 @@ export default function App() {
     } finally {
       scrollEl.scrollLeft = savedLeft
       scrollEl.scrollTop  = savedTop
-      darkFixes.forEach(({ el, prop, val }) => { el.style[prop] = val })
+      restoreDark()
       setExportStatus('')
       setExportProgress('')
     }

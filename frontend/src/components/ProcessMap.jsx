@@ -509,7 +509,7 @@ export default function ProcessMap({ processes }) {
           let y1 = fromBottom ? fr.bottom           : fr.cy
           let usesBottomExit = fromBottom
 
-          let x2, y2, isArch, aboveY, belowY, routeRight, routeLeft, arrowDir
+          let x2, y2, isArch, aboveY, belowY, forwardBelowY, routeRight, routeLeft, arrowDir
 
           // Separate routing corridors for YES vs NO so their paths never overlap.
           // YES travels OUTSIDE the source cell (in the inter-column gap):
@@ -533,7 +533,12 @@ export default function ProcessMap({ processes }) {
               x1 = fr.right; y1 = sideY; usesBottomExit = false
               x2 = tr.left; y2 = tr.cy; arrowDir = 'right'
               if (tr.left > srcCellRight + 40) {
-                isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 8
+                const candAY = Math.min(srcCellTop, tr.top) - 8
+                if (candAY >= 54) { // 54 = headerH(44)+10: safe above header
+                  isArch = true; aboveY = candAY
+                } else { // arch would be hidden under sticky header — route below cells
+                  forwardBelowY = Math.max(srcCellBottom, tr.bottom) + 8
+                }
               }
             } else if (crossesRow) {
               x1 = fr.left; y1 = sideY; usesBottomExit = false
@@ -567,7 +572,12 @@ export default function ProcessMap({ processes }) {
           } else if (tr.left > fr.right) {
             x2 = tr.left; y2 = tr.cy; arrowDir = 'right'
             if (tr.left > srcCellRight + 40) {
-              isArch = true; aboveY = Math.min(srcCellTop, tr.top) - 22
+              const candAY = Math.min(srcCellTop, tr.top) - 22
+              if (candAY >= 54) {
+                isArch = true; aboveY = candAY
+              } else {
+                forwardBelowY = Math.max(srcCellBottom, tr.bottom) + 12
+              }
             }
           } else if (tr.top > fr.bottom) {
             const isL4Dec = decNode.seq.split('.').length === 4
@@ -587,7 +597,7 @@ export default function ProcessMap({ processes }) {
           arrs.push({ x1, y1, x2, y2, midX: (x1 + x2) / 2, color: col_color,
             id: `dec_${decNode.seq}_${oi}`,
             label: isYes ? 'YES' : 'NO',
-            fromBottom: usesBottomExit, arch: isArch, aboveY, belowY, routeRight, routeLeft, arrowDir })
+            fromBottom: usesBottomExit, arch: isArch, aboveY, belowY, forwardBelowY, routeRight, routeLeft, arrowDir })
           anyDrawn = true
         })
         return anyDrawn
@@ -835,7 +845,15 @@ export default function ProcessMap({ processes }) {
           const AH = 5
           let d, labelX, labelY
 
-          if (a.arch) {
+          if (a.forwardBelowY != null) {
+            // Forward-right path going BELOW all cells — used when the above-arch would
+            // travel through the sticky header row and be hidden behind it (z-index:30).
+            // Route: exit right of diamond → down past all rows → right to target → up to target.
+            const bY = a.forwardBelowY
+            d = `M${a.x1},${a.y1} L${a.x1+16},${a.y1} L${a.x1+16},${bY} L${a.x2-15},${bY} L${a.x2-15},${a.y2} L${a.x2},${a.y2}`
+            labelX = a.midX
+            labelY = bY + 10
+          } else if (a.arch) {
             // Long right-exit: arch above the row, arrive at left side with horizontal approach
             const ay = a.aboveY ?? Math.min(a.y1, a.y2) - 12
             const approachX = a.x2 - 15  // 15px horizontal run before arrowhead
