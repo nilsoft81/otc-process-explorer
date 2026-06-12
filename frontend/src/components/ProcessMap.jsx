@@ -216,6 +216,12 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
           lineHeight:1.2, wordBreak:'break-word', width:'100%'}}>
           {node.name}
         </p>
+        {node.description && node.description !== 'NA' && (
+          <p style={{fontSize:7, color:mutedC, margin:0, lineHeight:1.2,
+            wordBreak:'break-word', width:'100%'}}>
+            {node.description}
+          </p>
+        )}
         {node.raci?.r && node.raci.r !== 'NA' && (
           <span style={{fontSize:7,color:mutedC,lineHeight:1.2,wordBreak:'break-word',width:'100%'}}>
             R: {node.raci.r}
