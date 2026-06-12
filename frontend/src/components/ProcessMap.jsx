@@ -158,9 +158,13 @@ function NodeBox({ node, baseColor, level, isSelected, childCount, onClick, expa
 }
 
 // ── DiamondBox (decision nodes) ────────────────────────────────────────────────
-const DIAG  = 164
-const SIDE  = Math.round(DIAG / Math.SQRT2)
-const INSET = Math.round((DIAG - SIDE) / 2)
+// DIAG=200 gives enough room for name + description + RACI without clipping.
+// The safe content width at the top of typical content (H≈70px) equals
+// 2*(topY - INSET) where topY = DIAG/2 - H/2 = 100-35 = 65 → 2*(65-29) = 72px.
+// Horizontal padding is set to (DIAG-72)/2 ≈ 64px so content exactly fits.
+const DIAG  = 200
+const SIDE  = Math.round(DIAG / Math.SQRT2)   // ≈ 141
+const INSET = Math.round((DIAG - SIDE) / 2)   // ≈ 29
 
 function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   const fill  = bg(baseColor, level)
@@ -202,7 +206,7 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
       <div style={{
         position:'absolute', inset:0,
         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-        padding:`10px ${INSET+10}px`, textAlign:'center', gap:1,
+        padding:'10px 64px', textAlign:'center', gap:1,
         overflow:'hidden', clipPath: clipDiamond,
       }}>
         <div style={{display:'flex',alignItems:'center',gap:3,flexWrap:'wrap',justifyContent:'center'}}>
