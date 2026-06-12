@@ -83,7 +83,8 @@ function NodeFooter({ node, textC, mutedC }) {
         <div style={{display:'flex',flexDirection:'column',gap:2}}>
           {pill('R:', raci.r)}
           {pill('A:', raci.a)}
-          {pill('C:', raci.i ?? raci.c)}
+          {pill('C:', raci.c)}
+          {pill('I:', raci.i)}
         </div>
       )}
       {hasOuts && decision_outcomes.split('|').map((o,idx)=>(
@@ -202,6 +203,12 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
           maxWidth:SIDE-8, wordBreak:'break-word'}}>
           {node.name}
         </p>
+        {node.description && (
+          <p style={{fontSize:8,color:mutedC,margin:'2px 0 0',lineHeight:1.25,
+            maxWidth:SIDE-8, wordBreak:'break-word', textAlign:'center'}}>
+            {node.description}
+          </p>
+        )}
         {node.raci?.r && node.raci.r !== 'NA' && (
           <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
             R: {node.raci.r}
@@ -210,6 +217,16 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
         {node.raci?.a && node.raci.a !== 'NA' && (
           <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
             A: {node.raci.a}
+          </span>
+        )}
+        {node.raci?.c && node.raci.c !== 'NA' && (
+          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+            C: {node.raci.c}
+          </span>
+        )}
+        {node.raci?.i && node.raci.i !== 'NA' && (
+          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+            I: {node.raci.i}
           </span>
         )}
       </div>
@@ -254,7 +271,9 @@ function buildRoleOrder(processes) {
   processes.forEach(proc => {
     proc.stages.forEach(st => {
       add(getRole(st))
-      st.steps.forEach(function walk(s) { add(getRole(s)); s.children?.forEach(walk) })
+      // Only L3 steps drive swimlane rows. L4 children's roles are shown inside
+      // their process box but do NOT create separate swimlane rows.
+      st.steps.forEach(s => { add(getRole(s)) })
     })
   })
   return order
@@ -412,9 +431,8 @@ export default function ProcessMap({ processes }) {
       else {
         seen.add(getRole(col.stage))
         seen.add(col.seg.role)
-        col.seg.steps.forEach(s => {
-          if (expL3.has(s.seq)) s.children?.forEach(c=>seen.add(getRole(c)))
-        })
+        // L4 child roles are intentionally excluded — they appear inside their
+        // L3 cell and their RACI is shown in the process box, not as swimlane rows.
       }
     })
     return Array.from(roleOrder.keys()).filter(r => seen.has(r))
