@@ -169,6 +169,18 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
   const mutedC= mc(level)
   const isAI  = node.is_ai ?? node.raci?.r?.toUpperCase().includes('AI')
 
+  // Scale name font so long labels shrink to fit inside the diamond
+  const nameLen = node.name?.length || 0
+  const nameFontSize = nameLen < 18 ? 10 : nameLen < 28 ? 9 : nameLen < 40 ? 8 : 7
+
+  // Clip-path that exactly matches the rotated inner square's diamond outline,
+  // so no content can bleed into the transparent corner triangles.
+  const clipDiamond =
+    `polygon(50% ${(INSET/DIAG*100).toFixed(1)}%, ` +
+    `${((DIAG-INSET)/DIAG*100).toFixed(1)}% 50%, ` +
+    `50% ${((DIAG-INSET)/DIAG*100).toFixed(1)}%, ` +
+    `${(INSET/DIAG*100).toFixed(1)}% 50%)`
+
   return (
     <div
       ref={boxRef}
@@ -186,46 +198,41 @@ function DiamondBox({ node, baseColor, level, isSelected, onClick, boxRef }) {
           : '0 1px 5px rgba(0,0,0,0.13)',
       }}/>
 
-      {/* Content — centered, horizontal */}
+      {/* Content clipped to diamond shape — nothing can bleed outside */}
       <div style={{
         position:'absolute', inset:0,
         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-        padding:`12px ${INSET+12}px`, textAlign:'center', gap:2,
+        padding:`10px ${INSET+10}px`, textAlign:'center', gap:1,
+        overflow:'hidden', clipPath: clipDiamond,
       }}>
         <div style={{display:'flex',alignItems:'center',gap:3,flexWrap:'wrap',justifyContent:'center'}}>
           <span style={{fontSize:9,fontFamily:'monospace',fontWeight:700,
             padding:'1px 4px',borderRadius:3,background:'rgba(0,0,0,0.22)',color:textC}}>
             {node.seq}
           </span>
-          {isAI && <BotIcon color={textC} size={16}/>}
+          {isAI && <BotIcon color={textC} size={14}/>}
         </div>
-        <p style={{fontSize:10,fontWeight:700,color:textC,margin:0,lineHeight:1.25,
-          maxWidth:SIDE-8, wordBreak:'break-word'}}>
+        <p style={{fontSize:nameFontSize, fontWeight:700, color:textC, margin:0,
+          lineHeight:1.2, wordBreak:'break-word', width:'100%'}}>
           {node.name}
         </p>
-        {node.description && (
-          <p style={{fontSize:8,color:mutedC,margin:'2px 0 0',lineHeight:1.25,
-            maxWidth:SIDE-8, wordBreak:'break-word', textAlign:'center'}}>
-            {node.description}
-          </p>
-        )}
         {node.raci?.r && node.raci.r !== 'NA' && (
-          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+          <span style={{fontSize:7,color:mutedC,lineHeight:1.2,wordBreak:'break-word',width:'100%'}}>
             R: {node.raci.r}
           </span>
         )}
         {node.raci?.a && node.raci.a !== 'NA' && (
-          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+          <span style={{fontSize:7,color:mutedC,lineHeight:1.2,wordBreak:'break-word',width:'100%'}}>
             A: {node.raci.a}
           </span>
         )}
         {node.raci?.c && node.raci.c !== 'NA' && (
-          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+          <span style={{fontSize:7,color:mutedC,lineHeight:1.2,wordBreak:'break-word',width:'100%'}}>
             C: {node.raci.c}
           </span>
         )}
         {node.raci?.i && node.raci.i !== 'NA' && (
-          <span style={{fontSize:8,color:mutedC,lineHeight:1.2,wordBreak:'break-word',maxWidth:SIDE-8}}>
+          <span style={{fontSize:7,color:mutedC,lineHeight:1.2,wordBreak:'break-word',width:'100%'}}>
             I: {node.raci.i}
           </span>
         )}
