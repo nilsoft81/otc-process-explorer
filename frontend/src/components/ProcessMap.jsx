@@ -563,11 +563,16 @@ export default function ProcessMap({ processes }) {
                 routeRight = rRight; arrowDir = 'left'
               }
             } else {
+              // Target is in a different column to the LEFT.
+              // Exit LEFT vertex so the arrow's first move visually points backward,
+              // not rightward off-screen (which confused users into thinking it was a
+              // forward route going out of view).
+              x1 = fr.left; y1 = sideY
               x2 = tr.right; y2 = tr.cy
               belowY = isYes
                 ? Math.max(srcCellBottom, tr.bottom) + 6
                 : Math.max(srcCellBottom, tr.bottom) + 10
-              routeRight = rRight; arrowDir = 'left'
+              routeLeft = rLeft; arrowDir = 'left'
             }
           } else if (tr.left > fr.right) {
             x2 = tr.left; y2 = tr.cy; arrowDir = 'right'
@@ -881,10 +886,13 @@ export default function ProcessMap({ processes }) {
               labelY = a.y1 + 16
             }
           } else if (a.belowY != null) {
-            // Backward arch: right to gap → down below all rows → left past target → up → right to target right side
+            // Backward-to-left-column: exit left (or right) → drop below all rows → left to target → up → arrive right side
+            // routeLeft is preferred (exits LEFT vertex, arrow direction is visually "going backward")
+            // routeRight is the legacy fallback
             const approachX = a.x2 + 15
-            d = `M${a.x1},${a.y1} L${a.routeRight},${a.y1} L${a.routeRight},${a.belowY} L${approachX},${a.belowY} L${approachX},${a.y2} L${a.x2},${a.y2}`
-            labelX = (a.x1 + a.routeRight) / 2
+            const corridor = a.routeLeft != null ? a.routeLeft : a.routeRight
+            d = `M${a.x1},${a.y1} L${corridor},${a.y1} L${corridor},${a.belowY} L${approachX},${a.belowY} L${approachX},${a.y2} L${a.x2},${a.y2}`
+            labelX = (a.x1 + corridor) / 2
             labelY = a.y1 - 6
           } else if (a.routeRight != null) {
             // Same-column right-exit: right to gap → down → left to target right side
