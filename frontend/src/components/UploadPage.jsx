@@ -12,9 +12,10 @@ const REQUIRED_COLUMNS = [
   { col: 'F',  name: 'Step Description',                description: 'Detailed description of the step' },
   { col: 'G',  name: 'Step Type',                       description: 'Process, Decision, Start, or Automated — Decisions include If yes/no routing' },
   { col: 'H',  name: 'Automated',                       description: 'Whether the step is fully automated (Y/N/Partial)' },
-  { col: 'Q',  name: 'RACI – Responsible (R)',          description: 'Who is responsible for executing the step' },
-  { col: 'R',  name: 'RACI – Accountable (A)',          description: 'Who is ultimately accountable' },
-  { col: 'S',  name: 'RACI – Contributing / Informed (I)', description: 'Who is informed or contributes' },
+  { col: 'Q',  name: 'RACI – Responsible (R)',   description: 'Who is responsible for executing the step' },
+  { col: 'R',  name: 'RACI – Accountable (A)',   description: 'Who is ultimately accountable' },
+  { col: 'S',  name: 'RACI – Contributing (C)',  description: 'Who contributes to the step' },
+  { col: 'T',  name: 'RACI – Informed (I)',       description: 'Who is informed of the outcome' },
 ]
 
 export default function UploadPage({ onBack, onSuccess }) {
@@ -210,9 +211,9 @@ export default function UploadPage({ onBack, onSuccess }) {
               <p className="text-slate-400 text-sm mt-1">
                 Your Excel must have a{' '}
                 <code className="text-teal-300 bg-slate-700/60 px-1 rounded">Process Design</code>{' '}
-                tab with all 11 columns below. Main headers must be in <strong className="text-slate-300">row 5</strong>{' '}
+                tab with all 12 columns below. Main headers must be in <strong className="text-slate-300">row 5</strong>{' '}
                 (row 4 = filter markers, row 6 = sub-headers, data from row 7).
-                Columns I–P (Key Differences, As-Is Owners) are not read.
+                Columns I–P (Key Differences, As-Is Owners) are not read. RACI reads Q (R), R (A), S (C), T (I).
               </p>
             </div>
             <div className="overflow-x-auto">

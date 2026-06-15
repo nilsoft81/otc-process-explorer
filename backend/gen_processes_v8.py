@@ -26,7 +26,7 @@ all_rows = list(ws.iter_rows(values_only=True))
 
 C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 0, 1, 2, 3, 4
 C_DESC, C_TYPE, C_AUTO = 5, 6, 7
-C_R, C_A, C_I = 16, 17, 18
+C_R, C_A, C_CONT, C_CONTNF = 16, 17, 18, 19
 
 DATA_START = 6  # row 7 (0-indexed)
 
@@ -88,7 +88,8 @@ for raw in all_rows[DATA_START:]:
     step_type, outcomes = parse_step_type(raw_type)
     r_val = v(raw, C_R)
     a_val = v(raw, C_A)
-    i_val = v(raw, C_I)
+    c_val = v(raw, C_CONT)
+    i_val = v(raw, C_CONTNF)
 
     if 'automated' in r_val.lower() and step_type == 'Process':
         step_type = 'Automated'
@@ -102,7 +103,7 @@ for raw in all_rows[DATA_START:]:
     rows_data.append({
         'lvl': lvl, 'seq': seq, 'name': name,
         'desc': v(raw, C_DESC), 'step_type': step_type, 'outcomes': outcomes,
-        'sys': v(raw, C_SYS), 'r': r_val, 'a': a_val, 'i': i_val,
+        'sys': v(raw, C_SYS), 'r': r_val, 'a': a_val, 'c': c_val, 'i': i_val,
         'is_ai': is_ai,
     })
 
@@ -170,6 +171,8 @@ def render_step(r, indent=0):
         parts.append(f'r={py_str(r["r"])}')
     if r['a']:
         parts.append(f'a={py_str(r["a"])}')
+    if r['c']:
+        parts.append(f'c={py_str(r["c"])}')
     if r['i']:
         parts.append(f'i={py_str(r["i"])}')
     if r['sys'] and r['sys'] not in ('See L4',):
@@ -202,12 +205,12 @@ lines = []
 lines.append('# Auto-generated from Process_Flow_Template_v2 8.xlsx (Process Design tab)')
 lines.append('')
 lines.append('')
-lines.append('def _s(seq, name, desc="", step_type="Process", r="", a="", i="", sys="",')
+lines.append('def _s(seq, name, desc="", step_type="Process", r="", a="", c="", i="", sys="",')
 lines.append('        outcomes="", is_ai=False, children=None):')
 lines.append('    node = {')
 lines.append('        "seq": seq, "name": name, "description": desc,')
 lines.append('        "step_type": step_type, "system_tool": sys,')
-lines.append('        "raci": {"r": r, "a": a, "i": i},')
+lines.append('        "raci": {"r": r, "a": a, "c": c, "i": i},')
 lines.append('        "decision_outcomes": outcomes if outcomes else None,')
 lines.append('        "is_ai": is_ai,')
 lines.append('    }')

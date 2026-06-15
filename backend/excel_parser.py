@@ -16,7 +16,8 @@ Required columns (0-based index):
   H=7  Automated?
   Q=16 RACI – Responsible (R)
   R=17 RACI – Accountable (A)
-  S=18 RACI – Contributing / Informed (I)
+  S=18 RACI – Contributing (C)
+  T=19 RACI – Informed (I)
 """
 import io
 import re
@@ -28,7 +29,7 @@ DATA_START_IDX = 6   # row 7 in Excel — skip main header + sub-header row
 
 C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 0, 1, 2, 3, 4
 C_DESC, C_TYPE, C_AUTO = 5, 6, 7
-C_R, C_A, C_I = 16, 17, 18
+C_R, C_A, C_CONT, C_INF = 16, 17, 18, 19   # Q=Responsible R=Accountable S=Contributing T=Informed
 
 REQUIRED_COLUMNS = {
     C_AI:   ("A",  "AI Agent"),
@@ -41,7 +42,8 @@ REQUIRED_COLUMNS = {
     C_AUTO: ("H",  "Automated"),
     C_R:    ("Q",  "RACI – Responsible"),
     C_A:    ("R",  "RACI – Accountable"),
-    C_I:    ("S",  "RACI – Contributing / Informed"),
+    C_CONT: ("S",  "RACI – Contributing"),
+    C_INF:  ("T",  "RACI – Informed"),
 }
 
 L1_COLORS = {
@@ -143,7 +145,8 @@ def parse_excel(file_content: bytes) -> list:
         step_type, outcomes = parse_step_type(raw_type)
         r_val = v(raw, C_R)
         a_val = v(raw, C_A)
-        i_val = v(raw, C_I)
+        c_val = v(raw, C_CONT)
+        i_val = v(raw, C_INF)
 
         if 'automated' in r_val.lower() and step_type == 'Process':
             step_type = 'Automated'
@@ -158,7 +161,7 @@ def parse_excel(file_content: bytes) -> list:
         rows_data.append({
             'lvl': lvl, 'seq': seq, 'name': name,
             'desc': v(raw, C_DESC), 'step_type': step_type, 'outcomes': outcomes,
-            'sys': v(raw, C_SYS), 'r': r_val, 'a': a_val, 'i': i_val,
+            'sys': v(raw, C_SYS), 'r': r_val, 'a': a_val, 'c': c_val, 'i': i_val,
             'is_ai': is_ai,
         })
 
@@ -174,7 +177,7 @@ def parse_excel(file_content: bytes) -> list:
                 extra.append({
                     'lvl': 'L3', 'seq': parent, 'name': 'Approval & Sign-off',
                     'desc': '', 'step_type': 'Process', 'outcomes': '',
-                    'sys': r['sys'], 'r': r['r'], 'a': r['a'], 'i': r['i'],
+                    'sys': r['sys'], 'r': r['r'], 'a': r['a'], 'c': r['c'], 'i': r['i'],
                     'is_ai': False,
                 })
     rows_data.extend(extra)
@@ -186,7 +189,7 @@ def parse_excel(file_content: bytes) -> list:
         node = {
             'seq': r['seq'], 'name': r['name'], 'description': r['desc'],
             'step_type': r['step_type'], 'system_tool': r['sys'],
-            'raci': {'r': r['r'], 'a': r['a'], 'i': r['i']},
+            'raci': {'r': r['r'], 'a': r['a'], 'c': r['c'], 'i': r['i']},
             'decision_outcomes': r['outcomes'] if r['outcomes'] else None,
             'is_ai': r.get('is_ai', False),
         }
@@ -212,7 +215,7 @@ def parse_excel(file_content: bytes) -> list:
             rec = {
                 'id': seq, 'seq': seq, 'name': r['name'], 'description': r['desc'],
                 'step_type': r['step_type'], 'system_tool': r['sys'],
-                'raci': {'r': r['r'], 'a': r['a'], 'i': r['i']},
+                'raci': {'r': r['r'], 'a': r['a'], 'c': r['c'], 'i': r['i']},
                 'steps': [],
             }
             l2_map[seq] = rec
@@ -241,7 +244,8 @@ COLUMNS_META = [
     {"col": "F",  "index": C_DESC, "name": "Step Description",               "description": "Detailed description of the step"},
     {"col": "G",  "index": C_TYPE, "name": "Step Type",                      "description": "Process, Decision, Start, or Automated — Decisions include If yes/no routing"},
     {"col": "H",  "index": C_AUTO, "name": "Automated",                      "description": "Whether the step is fully automated (Y/N/Partial)"},
-    {"col": "Q",  "index": C_R,    "name": "RACI – Responsible (R)",         "description": "Who is responsible for executing the step"},
-    {"col": "R",  "index": C_A,    "name": "RACI – Accountable (A)",         "description": "Who is ultimately accountable"},
-    {"col": "S",  "index": C_I,    "name": "RACI – Contributing / Informed (I)", "description": "Who is informed or contributes"},
+    {"col": "Q",  "index": C_R,    "name": "RACI – Responsible (R)",    "description": "Who is responsible for executing the step"},
+    {"col": "R",  "index": C_A,    "name": "RACI – Accountable (A)",    "description": "Who is ultimately accountable"},
+    {"col": "S",  "index": C_CONT, "name": "RACI – Contributing (C)", "description": "Who contributes to the step"},
+    {"col": "T",  "index": C_INF,  "name": "RACI – Informed (I)",     "description": "Who is informed of the outcome"},
 ]
