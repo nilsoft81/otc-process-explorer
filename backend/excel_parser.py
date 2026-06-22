@@ -165,7 +165,11 @@ def parse_excel(file_content: bytes) -> list:
             'is_ai': is_ai,
         })
 
-    # Inject synthetic L3 parents for orphaned L4s
+    # Inject synthetic L3 parents for orphaned L4s.
+    # IMPORTANT: do NOT copy the L4's Responsible (r) into the synthetic L3.
+    # Copying it would create a phantom swimlane row for that role even though
+    # no L3-level step actually belongs to it.  Use '' so the synthetic parent
+    # inherits the stage's natural swimlane and never introduces a new row.
     l3_seqs = {r['seq'] for r in rows_data if r['lvl'] == 'L3'}
     orphan_added = set()
     extra = []
@@ -177,7 +181,7 @@ def parse_excel(file_content: bytes) -> list:
                 extra.append({
                     'lvl': 'L3', 'seq': parent, 'name': 'Approval & Sign-off',
                     'desc': '', 'step_type': 'Process', 'outcomes': '',
-                    'sys': r['sys'], 'r': r['r'], 'a': r['a'], 'c': r['c'], 'i': r['i'],
+                    'sys': '', 'r': '', 'a': '', 'c': '', 'i': '',
                     'is_ai': False,
                 })
     rows_data.extend(extra)

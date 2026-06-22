@@ -119,7 +119,7 @@ for r in rows_data:
             extra.append({
                 'lvl': 'L3', 'seq': parent, 'name': 'Approval & Sign-off',
                 'desc': '', 'step_type': 'Process', 'outcomes': '',
-                'sys': r['sys'], 'r': r['r'], 'a': r['a'], 'i': r['i'],
+                'sys': '', 'r': '', 'a': '', 'i': '',
                 'is_ai': False,
             })
 rows_data.extend(extra)
