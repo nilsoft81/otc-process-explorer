@@ -26,7 +26,7 @@ all_rows = list(ws.iter_rows(values_only=True))
 
 C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 0, 1, 2, 3, 4
 C_DESC, C_TYPE, C_AUTO = 5, 6, 7
-C_R, C_A, C_CONT, C_CONTNF = 16, 17, 18, 19
+C_R, C_A, C_CONT, C_INF = 18, 19, 20, 21   # S=Responsible T=Accountable U=Contributing V=Informed
 
 DATA_START = 6  # row 7 (0-indexed)
 
@@ -89,7 +89,7 @@ for raw in all_rows[DATA_START:]:
     r_val = v(raw, C_R)
     a_val = v(raw, C_A)
     c_val = v(raw, C_CONT)
-    i_val = v(raw, C_CONTNF)
+    i_val = v(raw, C_INF)
 
     if 'automated' in r_val.lower() and step_type == 'Process':
         step_type = 'Automated'

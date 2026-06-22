@@ -12,10 +12,10 @@ const REQUIRED_COLUMNS = [
   { col: 'F',  name: 'Step Description',                description: 'Detailed description of the step' },
   { col: 'G',  name: 'Step Type',                       description: 'Process, Decision, Start, or Automated — Decisions include If yes/no routing' },
   { col: 'H',  name: 'Automated',                       description: 'Whether the step is fully automated (Y/N/Partial)' },
-  { col: 'Q',  name: 'RACI – Responsible (R)',   description: 'Who is responsible for executing the step' },
-  { col: 'R',  name: 'RACI – Accountable (A)',   description: 'Who is ultimately accountable' },
-  { col: 'S',  name: 'RACI – Contributing (C)',  description: 'Who contributes to the step' },
-  { col: 'T',  name: 'RACI – Informed (I)',       description: 'Who is informed of the outcome' },
+  { col: 'S',  name: 'RACI – Responsible (R)',   description: 'Who is responsible for executing the step' },
+  { col: 'T',  name: 'RACI – Accountable (A)',   description: 'Who is ultimately accountable' },
+  { col: 'U',  name: 'RACI – Contributing (C)',  description: 'Who contributes to the step' },
+  { col: 'V',  name: 'RACI – Informed (I)',       description: 'Who is informed of the outcome' },
 ]
 
 export default function UploadPage({ onBack, onSuccess }) {
@@ -213,7 +213,7 @@ export default function UploadPage({ onBack, onSuccess }) {
                 <code className="text-teal-300 bg-slate-700/60 px-1 rounded">Process Design</code>{' '}
                 tab with all 12 columns below. Main headers must be in <strong className="text-slate-300">row 5</strong>{' '}
                 (row 4 = filter markers, row 6 = sub-headers, data from row 7).
-                Columns I–P (Key Differences, As-Is Owners) are not read. RACI reads Q (R), R (A), S (C), T (I).
+                Columns I–R (Key Differences, As-Is Owners) are not read. RACI reads S (R), T (A), U (C), V (I).
               </p>
             </div>
             <div className="overflow-x-auto">

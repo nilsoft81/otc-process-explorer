@@ -14,10 +14,10 @@ Required columns (0-based index):
   F=5  Step Description
   G=6  Step Type (includes decision routing)
   H=7  Automated?
-  Q=16 RACI – Responsible (R)
-  R=17 RACI – Accountable (A)
-  S=18 RACI – Contributing (C)
-  T=19 RACI – Informed (I)
+  S=18 RACI – Responsible (R)
+  T=19 RACI – Accountable (A)
+  U=20 RACI – Contributing (C)
+  V=21 RACI – Informed (I)
 """
 import io
 import re
@@ -29,7 +29,7 @@ DATA_START_IDX = 6   # row 7 in Excel — skip main header + sub-header row
 
 C_AI, C_SYS, C_LVL, C_SEQ, C_NAME = 0, 1, 2, 3, 4
 C_DESC, C_TYPE, C_AUTO = 5, 6, 7
-C_R, C_A, C_CONT, C_INF = 16, 17, 18, 19   # Q=Responsible R=Accountable S=Contributing T=Informed
+C_R, C_A, C_CONT, C_INF = 18, 19, 20, 21   # S=Responsible T=Accountable U=Contributing V=Informed
 
 REQUIRED_COLUMNS = {
     C_AI:   ("A",  "AI Agent"),
@@ -40,10 +40,10 @@ REQUIRED_COLUMNS = {
     C_DESC: ("F",  "Step Description"),
     C_TYPE: ("G",  "Step Type"),
     C_AUTO: ("H",  "Automated"),
-    C_R:    ("Q",  "RACI – Responsible"),
-    C_A:    ("R",  "RACI – Accountable"),
-    C_CONT: ("S",  "RACI – Contributing"),
-    C_INF:  ("T",  "RACI – Informed"),
+    C_R:    ("S",  "RACI – Responsible"),
+    C_A:    ("T",  "RACI – Accountable"),
+    C_CONT: ("U",  "RACI – Contributing"),
+    C_INF:  ("V",  "RACI – Informed"),
 }
 
 L1_COLORS = {
@@ -248,8 +248,8 @@ COLUMNS_META = [
     {"col": "F",  "index": C_DESC, "name": "Step Description",               "description": "Detailed description of the step"},
     {"col": "G",  "index": C_TYPE, "name": "Step Type",                      "description": "Process, Decision, Start, or Automated — Decisions include If yes/no routing"},
     {"col": "H",  "index": C_AUTO, "name": "Automated",                      "description": "Whether the step is fully automated (Y/N/Partial)"},
-    {"col": "Q",  "index": C_R,    "name": "RACI – Responsible (R)",    "description": "Who is responsible for executing the step"},
-    {"col": "R",  "index": C_A,    "name": "RACI – Accountable (A)",    "description": "Who is ultimately accountable"},
-    {"col": "S",  "index": C_CONT, "name": "RACI – Contributing (C)", "description": "Who contributes to the step"},
-    {"col": "T",  "index": C_INF,  "name": "RACI – Informed (I)",     "description": "Who is informed of the outcome"},
+    {"col": "S",  "index": C_R,    "name": "RACI – Responsible (R)",    "description": "Who is responsible for executing the step"},
+    {"col": "T",  "index": C_A,    "name": "RACI – Accountable (A)",    "description": "Who is ultimately accountable"},
+    {"col": "U",  "index": C_CONT, "name": "RACI – Contributing (C)", "description": "Who contributes to the step"},
+    {"col": "V",  "index": C_INF,  "name": "RACI – Informed (I)",     "description": "Who is informed of the outcome"},
 ]
